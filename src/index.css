@@ -1,0 +1,19 @@
+@import "tailwindcss";
+
+@theme {
+  --color-charcoal: #21222D;
+  --color-charcoal-light: #2A2C3A;
+  --color-charcoal-dark: #191A23;
+  --color-periwinkle: #958CE8;
+  --color-periwinkle-hover: #8378E5;
+  --color-skyblue: #ACD1FD;
+  --color-skyblue-light: #D5E7FE;
+  --color-muted-border: #DBDBE5;
+  --color-canvas: #F4F5F8;
+  --color-card-light: #FFFFFF;
+}
+
+body {
+  background-color: #F4F5F8;
+  color: #21222D;
+}
