@@ -1,6 +1,6 @@
 {
   "name": "AI Coding Agent",
-  "description": "Autonomous AI coding agent framework and visual workbench that explores codebases, creates execution plans, modifies code, and generates summaries.",
+  "description": "Cursor-like autonomous AI IDE with Email/Gmail OTP verification auth, 4 simultaneous agents (Coder, Reviewer, Bug Hunter, Git Manager), and Bring Your Own Key (BYOK) system.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

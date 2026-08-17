@@ -1,29 +1,150 @@
+export type AgentRole = 'coder' | 'reviewer' | 'bughunter' | 'gitmanager';
+
+export type AgentStatus = 'idle' | 'running' | 'completed' | 'failed' | 'paused';
+
+export interface AgentInfo {
+  id: AgentRole;
+  name: string;
+  shortTitle: string;
+  roleDescription: string;
+  iconName: string;
+  accentColor: string; // Hex or Tailwind class
+  bgGradient: string;
+  status: AgentStatus;
+  progress: number; // 0-100
+  currentAction: string;
+  thoughtStream: string[];
+  logs: string[];
+  toolCallsCount: number;
+  stats: {
+    linesGenerated?: number;
+    issuesFound?: number;
+    bugsPatched?: number;
+    commitsPushed?: number;
+  };
+}
+
 export interface RepoFile {
   path: string;
+  name?: string;
   content: string;
   language: string;
   isModified?: boolean;
+  isNew?: boolean;
+  isStaged?: boolean;
   originalContent?: string;
 }
 
-export type AgentStage = 
-  | 'idle'
-  | 'exploring'
-  | 'identifying'
-  | 'planning'
-  | 'modifying'
-  | 'testing'
-  | 'summarizing'
-  | 'completed'
-  | 'error';
+export type BugSeverity = 'critical' | 'high' | 'medium' | 'low';
 
-export interface AgentToolCall {
+export interface CodeBug {
   id: string;
+  file: string;
+  line: number;
+  column?: number;
+  severity: BugSeverity;
+  type: 'syntax' | 'runtime' | 'security' | 'logic' | 'type-error' | 'performance';
+  title: string;
+  description: string;
+  suggestedFix: string;
+  patchCode?: string;
+  isFixed: boolean;
+}
+
+export interface AgentExecutionState {
+  stage: 'idle' | 'exploring' | 'identifying' | 'planning' | 'modifying' | 'testing' | 'completed' | 'failed';
+  progress: number;
+  currentStepDescription: string;
+  logs: string[];
+  toolCalls: any[];
+  plan: ExecutionPlanStep[];
+  identifiedFiles: string[];
+  summary?: any;
+}
+
+export interface ReviewAnnotation {
+  id: string;
+  file: string;
+  line: number;
+  category: 'architecture' | 'clean-code' | 'security' | 'performance' | 'best-practice';
+  level: 'error' | 'warning' | 'info' | 'kudos';
+  title: string;
+  comment: string;
+  suggestion?: string;
+}
+
+export interface CodeReviewScorecard {
+  overallScore: number; // 0-100
+  cleanlinessScore: number;
+  securityScore: number;
+  performanceScore: number;
+  maintainabilityScore: number;
+  summary: string;
+  keyStrengths: string[];
+  criticalRisks: string[];
+  recommendations: string[];
+}
+
+export interface GitCommit {
+  id: string;
+  hash: string;
+  shortHash: string;
+  message: string;
+  author: string;
+  authorEmail: string;
   timestamp: string;
-  tool: 'list_dir' | 'read_file' | 'search_code' | 'edit_file' | 'run_tests' | 'git_diff';
-  args: Record<string, any>;
-  result: string;
-  status: 'success' | 'failed' | 'running';
+  branch: string;
+  filesChanged: number;
+  additions: number;
+  deletions: number;
+  isRemotePushed: boolean;
+}
+
+export interface GitBranch {
+  name: string;
+  isCurrent: boolean;
+  lastCommitHash: string;
+  isProtected?: boolean;
+}
+
+export interface PullRequest {
+  id: string;
+  number: number;
+  title: string;
+  description: string;
+  sourceBranch: string;
+  targetBranch: string;
+  status: 'open' | 'merged' | 'draft' | 'closed';
+  author: string;
+  createdAt: string;
+  reviewStatus: 'approved' | 'changes_requested' | 'pending';
+  checksPassed: boolean;
+  diffSummary: {
+    files: number;
+    additions: number;
+    deletions: number;
+  };
+}
+
+export type LLMProvider = 'gemini' | 'openai' | 'anthropic' | 'custom';
+
+export interface BYOKSettings {
+  provider: LLMProvider;
+  geminiApiKey: string;
+  openaiApiKey: string;
+  anthropicApiKey: string;
+  customEndpoint: string;
+  customApiKey: string;
+  selectedModel: string;
+  useCustomKey: boolean;
+  isKeyVerified: boolean;
+  lastPingMs?: number;
+  lastVerifiedDate?: string;
+  usageStats: {
+    totalTokens: number;
+    agentRequests: number;
+    costEstimate: number;
+  };
 }
 
 export interface ExecutionPlanStep {
@@ -32,29 +153,6 @@ export interface ExecutionPlanStep {
   description: string;
   targetFiles: string[];
   status: 'pending' | 'in_progress' | 'completed' | 'failed';
-}
-
-export interface AgentExecutionState {
-  stage: AgentStage;
-  progress: number; // 0 to 100
-  currentStepDescription: string;
-  logs: string[];
-  toolCalls: AgentToolCall[];
-  plan: ExecutionPlanStep[];
-  identifiedFiles: string[];
-  summary: {
-    overview: string;
-    filesModified: string[];
-    featuresAdded: string[];
-    preservedFunctionality: string[];
-    tradeOffs: string[];
-    testResults: {
-      total: number;
-      passed: number;
-      failed: number;
-      details: string[];
-    };
-  } | null;
 }
 
 export interface Note {
@@ -67,6 +165,22 @@ export interface Note {
   updatedAt: string;
 }
 
+export interface UserProfile {
+  id: string;
+  email: string;
+  name: string;
+  avatarUrl?: string;
+  isVerified: boolean;
+  verifiedAt?: string;
+  provider: 'gmail' | 'email';
+  token?: string;
+  preferences?: {
+    theme?: string;
+    defaultModel?: string;
+    autoSave?: boolean;
+  };
+}
+
 export interface PythonAgentFile {
   name: string;
   filename: string;
@@ -74,3 +188,32 @@ export interface PythonAgentFile {
   content: string;
   language: string;
 }
+
+export interface ProjectMetadata {
+  name: string;
+  description: string;
+  version: string;
+  templateId?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ProjectTemplate {
+  id: string;
+  name: string;
+  tagline: string;
+  description: string;
+  category: 'node' | 'react' | 'python' | 'blank';
+  icon: string;
+  files: RepoFile[];
+}
+
+export interface AuthState {
+  user: UserProfile | null;
+  isAuthenticated: boolean;
+  isAuthModalOpen: boolean;
+  pendingEmail?: string;
+  codeSentTime?: number;
+  latestPreviewCode?: string;
+}
+

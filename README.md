@@ -1,77 +1,46 @@
-# AI Coding Agent - Autonomous Code Generation & Refactoring Framework
+# Cursor AI - 4 Autonomous Agents IDE & Bring Your Own Key (BYOK)
 
-An autonomous AI Coding Agent and visual workbench designed to inspect, plan, modify, and verify full-stack codebases with zero manual code writing.
-
----
-
-## 🌟 Core Agent Capabilities & Responsibilities
-
-The agent strictly operates through a structured 5-stage pipeline:
-
-1. **Explore the Repository**: Automatically parses directory structures, package definitions, and configuration files to understand the project architecture (e.g. Express MVC, React SPA, or Python backends).
-2. **Identify Relevant Files**: Scans source files and automatically selects the exact target files required for modification without altering unrelated modules.
-3. **Create Execution Plan**: Formulates a clear, step-by-step brief execution plan outlining structural and schema changes prior to execution.
-4. **Modify the Codebase**: Safely applies target changes, extending functionality (such as adding categories, tags, and search query filters) while strictly preserving existing API compatibility.
-5. **Summarise Changes & Verify**: Provides a detailed summary of all modified code blocks and runs automated unit and integration tests to verify overall system stability.
+A next-generation Cursor-like AI IDE workbench where **4 specialized autonomous agents collaborate simultaneously** on your codebase, powered by a flexible **Bring Your Own Key (BYOK)** system supporting Google Gemini, OpenAI, Anthropic Claude, and local/custom LLMs.
 
 ---
 
-## 🚀 Key Features
+## 🤖 The 4 Autonomous Agents
 
-* **Agent Workflow Execution**: Interactive terminal & pipeline status tracking showing live progress, tool calls, and logs.
-* **Code Modifications Inspector**: Side-by-side file viewer comparing target repository files before vs. after agent modifications.
-* **Target App Sandbox**: Live API test bench allowing interactive verification of modified endpoints (such as note category filtering, tag searches, and note creation).
-* **Python Agent Source Explorer**: Modular Python implementation (`agent.py`, `repo_explorer.py`, `planner.py`, `tools.py`) with complete source code view and 1-click ZIP export.
+1. **Agent 1: Coder & Software Architect**
+   - Implements requested features, creates Mongoose schemas, expands Express controllers, and generates unit test files.
+   - Preserves 100% backward compatibility for existing endpoints.
 
----
+2. **Agent 2: Code Reviewer & Quality Auditor**
+   - Analyzes clean architecture (MVC), SOLID principles, and DRY patterns.
+   - Computes a comprehensive **Clean Code Scorecard (0–100)** with sub-ratings for Cleanliness, Security, Performance, and Maintainability.
+   - Provides line-by-line review annotations and architectural recommendations.
 
-## 🛠️ Project Structure
+3. **Agent 3: Bug Hunter & Self-Healing Auto-Fixer**
+   - Scans static AST trees and runtime traces for logic errors, uncaught exceptions, null dereferences, and security vulnerabilities (e.g. ReDoS regex injection).
+   - Generates verified patch diffs with a **1-click "Apply Fix to Codebase"** and **"Auto-Fix All Issues"** engine.
 
-```
-├── README.md               # Project overview and system documentation
-├── index.html              # HTML entry point with metadata
-├── src/
-│   ├── App.tsx             # Main application container & tab router
-│   ├── components/
-│   │   ├── Header.tsx           # Global navbar with live status indicators
-│   │   ├── AgentRunTab.tsx      # Core 5-stage agent execution pipeline
-│   │   ├── DiffViewerTab.tsx    # Code modifications & diff viewer
-│   │   ├── NoteAppBenchTab.tsx  # Interactive API testing sandbox
-│   │   └── PythonCodeTab.tsx    # Python source code explorer & ZIP downloader
-│   ├── data/
-│   │   ├── targetRepoMock.ts    # Target app source code and agent diff mocks
-│   │   └── pythonSource.ts      # Python 3.11 agent source files
-│   └── main.tsx            # React application mounting
-```
+4. **Agent 4: Git & GitHub Operations Manager**
+   - Manages source control: stages/unstages modified files, crafts conventional semantic commit messages (`feat:`, `refactor:`, `test:`).
+   - Handles branch creation & switching, simulates remote `git push` & `git pull`.
+   - Generates complete **GitHub Pull Requests (PRs)** with markdown summaries, 4-agent audit reports, and automated CI check status.
 
 ---
 
-## ⚡ Getting Started
+## 🔑 Bring Your Own Key (BYOK) System
 
-### Prerequisites
-
-* Node.js 18+
-* npm
-
-### Installation & Run
-
-1. **Install Dependencies**:
-   ```bash
-   npm install
-   ```
-
-2. **Start Development Server**:
-   ```bash
-   npm run dev
-   ```
-
-3. **Build for Production**:
-   ```bash
-   npm run build
-   ```
+- **Google Gemini API**: Connect your free Google AI Studio key (`gemini-3.7-flash`, `gemini-3.1-pro-preview`, `gemini-2.5-flash`).
+- **OpenAI API**: Connect your OpenAI key (`gpt-4o`, `gpt-4o-mini`, `o1`).
+- **Anthropic Claude**: Connect your Claude key (`claude-3-5-sonnet-latest`, `claude-3-opus`).
+- **Custom / Local Endpoints**: Support for local Ollama instances (`qwen2.5-coder`, `deepseek-coder`) or OpenRouter proxy URLs.
+- **Key Validation**: Integrated **"Test Connection"** ping tool displaying round-trip latency in milliseconds (e.g. `✓ Connected (112ms)`).
+- **Client-Side Privacy**: Keys are encrypted locally in browser `localStorage` and never exposed publicly.
 
 ---
 
-## 🔒 Preserving Functionality Notice
+## 💻 Cursor IDE Interface Features
 
-All modifications generated by the agent maintain backwards compatibility with existing REST endpoints and data contracts. Existing parameters remain operational alongside new features.
+- **Activity Bar**: Quick switching between File Explorer, 4-Agent Orchestrator, Code Review, Bug Hunter, Git Manager, and Settings.
+- **Command Palette (`Cmd + K` / `Ctrl + K`)**: Instant Cursor-style prompt interface to dispatch directives to all 4 agents.
+- **Code Editor & Diff Viewer**: Full file breadcrumbs, line numbers, inline agent suggestions, and side-by-side Before vs. After diff comparison.
+- **Bottom Dock**: Real-time 4-Agents Stream, Node integration test runner (`npm test`), Git commit log, and interactive Note API testing sandbox.
+- **ZIP Export**: 1-click download of the complete codebase, agent modules, and assignment submission.
