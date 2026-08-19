@@ -1,6 +1,6 @@
 {
   "name": "AI Coding Agent",
-  "description": "Cursor-like autonomous AI IDE with Email/Gmail OTP verification auth, 4 simultaneous agents (Coder, Reviewer, Bug Hunter, Git Manager), and Bring Your Own Key (BYOK) system.",
+  "description": "Cursor-like autonomous AI IDE with 4 simultaneous agents (Coder, Reviewer, Bug Hunter, Git Manager), and Bring Your Own Key (BYOK) system.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

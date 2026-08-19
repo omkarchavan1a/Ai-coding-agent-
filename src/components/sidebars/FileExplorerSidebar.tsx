@@ -13,8 +13,15 @@ import {
   ChevronDown,
   FolderPlus,
   Upload,
-  Download
+  Download,
+  RotateCcw,
+  XCircle,
+  Copy,
+  Edit3,
+  MoreVertical
 } from 'lucide-react';
+import { FileContextMenu, ContextMenuPosition } from '../common/FileContextMenu';
+import { FileOperationModal, FileModalType } from '../modals/FileOperationModal';
 
 export const FileExplorerSidebar: React.FC = () => {
   const {
@@ -25,26 +32,54 @@ export const FileExplorerSidebar: React.FC = () => {
     files,
     activeFilePath,
     openFileInTab,
+    closeAllTabs,
+    closeTab,
+    closeOtherTabs,
+    closeSavedTabs,
     createNewFile,
+    createFolder,
     deleteFile,
+    deleteFolder,
+    renameFile,
+    duplicateFile,
+    revertFile,
+    revertAllFiles,
+    downloadSingleFile,
+    setViewMode,
     stagedFiles,
     unstagedFiles
   } = useIDE();
 
   const [searchQuery, setSearchQuery] = useState('');
-  const [isCreatingFile, setIsCreatingFile] = useState(false);
-  const [newFileName, setNewFileName] = useState('');
+  const [collapsedFolders, setCollapsedFolders] = useState<Record<string, boolean>>({});
 
-  const handleCreateSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newFileName.trim()) {
-      setIsCreatingFile(false);
-      return;
-    }
-    createNewFile(newFileName.trim());
-    setNewFileName('');
-    setIsCreatingFile(false);
-  };
+  // Context Menu State
+  const [contextMenu, setContextMenu] = useState<{
+    isOpen: boolean;
+    position: ContextMenuPosition;
+    targetPath: string;
+    isFolder: boolean;
+    isModified: boolean;
+  }>({
+    isOpen: false,
+    position: { x: 0, y: 0 },
+    targetPath: '',
+    isFolder: false,
+    isModified: false
+  });
+
+  // Modal State
+  const [modalState, setModalState] = useState<{
+    isOpen: boolean;
+    type: FileModalType;
+    targetPath: string;
+    isFolder: boolean;
+  }>({
+    isOpen: false,
+    type: null,
+    targetPath: '',
+    isFolder: false
+  });
 
   const getFileIcon = (fileName: string) => {
     if (fileName.endsWith('.json')) return <FileJson className="w-3.5 h-3.5 text-[#fbbf24]" />;
@@ -54,9 +89,33 @@ export const FileExplorerSidebar: React.FC = () => {
     return <FileCode className="w-3.5 h-3.5 text-[#34d399]" />;
   };
 
+  const handleContextMenu = (e: React.MouseEvent, path: string, isFolder: boolean = false) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const file = files.find(f => f.path === path);
+    const isMod = !!(file?.isModified || stagedFiles.includes(path) || unstagedFiles.includes(path));
+
+    setContextMenu({
+      isOpen: true,
+      position: { x: e.clientX, y: e.clientY },
+      targetPath: path,
+      isFolder,
+      isModified: isMod
+    });
+  };
+
+  const toggleFolder = (folderName: string) => {
+    setCollapsedFolders(prev => ({
+      ...prev,
+      [folderName]: !prev[folderName]
+    }));
+  };
+
   const filteredFiles = files.filter(f => 
     f.path.toLowerCase().includes(searchQuery.toLowerCase())
   );
+
+  const modifiedCount = files.filter(f => f.isModified || stagedFiles.includes(f.path) || unstagedFiles.includes(f.path)).length;
 
   return (
     <div className="h-full flex flex-col bg-[#111114] text-xs text-[#a1a1aa] select-none">
@@ -64,20 +123,54 @@ export const FileExplorerSidebar: React.FC = () => {
       <div className="h-9 px-3 border-b border-[#1e1e24] flex items-center justify-between font-medium text-[#71717a] text-[11px]">
         <span className="text-[#ededee] font-semibold text-xs">Explorer</span>
         <div className="flex items-center space-x-0.5">
+          {/* New File */}
           <button
-            onClick={() => setIsCreatingFile(true)}
+            onClick={() => setModalState({ isOpen: true, type: 'new-file', targetPath: '', isFolder: false })}
             className="p-1 rounded hover:bg-[#1c1c24] text-[#71717a] hover:text-white transition-colors"
-            title="New File"
+            title="New File..."
           >
-            <Plus className="w-3.5 h-3.5" />
+            <Plus className="w-3.5 h-3.5 text-[#34d399]" />
           </button>
+
+          {/* New Folder */}
+          <button
+            onClick={() => setModalState({ isOpen: true, type: 'new-folder', targetPath: '', isFolder: true })}
+            className="p-1 rounded hover:bg-[#1c1c24] text-[#71717a] hover:text-white transition-colors"
+            title="New Folder..."
+          >
+            <FolderPlus className="w-3.5 h-3.5 text-[#fbbf24]" />
+          </button>
+
+          {/* Close All Tabs */}
+          <button
+            onClick={closeAllTabs}
+            className="p-1 rounded hover:bg-[#1c1c24] text-[#71717a] hover:text-[#fb7185] transition-colors"
+            title="Close All Open Tabs"
+          >
+            <XCircle className="w-3.5 h-3.5" />
+          </button>
+
+          {/* Revert All Files */}
+          {modifiedCount > 0 && (
+            <button
+              onClick={revertAllFiles}
+              className="p-1 rounded hover:bg-[#1c1c24] text-[#fbbf24] hover:text-white transition-colors"
+              title="Revert all modified files"
+            >
+              <RotateCcw className="w-3.5 h-3.5" />
+            </button>
+          )}
+
+          {/* Project Starter */}
           <button
             onClick={openNewProjectModal}
             className="p-1 rounded hover:bg-[#1c1c24] text-[#71717a] hover:text-[#818cf8] transition-colors"
             title="New Project Starter"
           >
-            <FolderPlus className="w-3.5 h-3.5" />
+            <Folder className="w-3.5 h-3.5 text-[#818cf8]" />
           </button>
+
+          {/* Import Project */}
           <button
             onClick={openImportProjectModal}
             className="p-1 rounded hover:bg-[#1c1c24] text-[#71717a] hover:text-[#fbbf24] transition-colors"
@@ -85,6 +178,8 @@ export const FileExplorerSidebar: React.FC = () => {
           >
             <Upload className="w-3.5 h-3.5" />
           </button>
+
+          {/* Export Project */}
           <button
             onClick={openExportProjectModal}
             className="p-1 rounded hover:bg-[#1c1c24] text-[#71717a] hover:text-[#34d399] transition-colors"
@@ -103,45 +198,29 @@ export const FileExplorerSidebar: React.FC = () => {
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search files..."
+            placeholder="Filter files in workspace..."
             className="w-full bg-[#15151a] border border-[#202028] rounded pl-7 pr-2 py-1 text-xs text-[#ededee] placeholder-[#52525b] focus:outline-none focus:border-[#3b3b4a]"
           />
         </div>
       </div>
 
-      {/* Inline File Creation Input */}
-      {isCreatingFile && (
-        <form onSubmit={handleCreateSubmit} className="p-2 border-b border-[#202028] bg-[#15151a]">
-          <div className="flex items-center space-x-1">
-            <input
-              type="text"
-              autoFocus
-              value={newFileName}
-              onChange={(e) => setNewFileName(e.target.value)}
-              placeholder="e.g. app/utils/auth.js"
-              className="flex-1 bg-[#0d0d0f] border border-[#6366f1] rounded px-2 py-0.5 text-xs text-white focus:outline-none"
-            />
-            <button
-              type="submit"
-              className="px-2 py-0.5 bg-[#6366f1] text-white rounded text-[10px] font-medium"
-            >
-              Add
-            </button>
-            <button
-              type="button"
-              onClick={() => setIsCreatingFile(false)}
-              className="px-1.5 py-0.5 text-[#71717a] hover:text-white text-[10px]"
-            >
-              Cancel
-            </button>
-          </div>
-        </form>
-      )}
-
-      {/* Workspace root section */}
-      <div className="px-3 py-1.5 flex items-center justify-between text-[10px] font-medium text-[#71717a] border-b border-[#1a1a20]">
-        <span className="truncate uppercase font-semibold text-[#a1a1aa]">{projectName}</span>
-        <span className="font-mono text-[9px]">{files.length} files</span>
+      {/* Workspace Root Header */}
+      <div 
+        onContextMenu={(e) => handleContextMenu(e, '', true)}
+        className="px-3 py-1.5 flex items-center justify-between text-[10px] font-medium text-[#71717a] border-b border-[#1a1a20] hover:bg-[#15151c] cursor-pointer"
+      >
+        <div className="flex items-center space-x-1 truncate font-semibold uppercase text-[#a1a1aa]">
+          <FolderOpen className="w-3.5 h-3.5 text-[#818cf8]" />
+          <span className="truncate">{projectName}</span>
+        </div>
+        <div className="flex items-center space-x-1.5">
+          {modifiedCount > 0 && (
+            <span className="px-1 py-0.2 rounded bg-[#f59e0b]/15 text-[#fbbf24] text-[9px] font-bold">
+              {modifiedCount} MOD
+            </span>
+          )}
+          <span className="font-mono text-[9px]">{files.length} files</span>
+        </div>
       </div>
 
       {/* File Tree List */}
@@ -156,19 +235,21 @@ export const FileExplorerSidebar: React.FC = () => {
             <div
               key={file.path}
               onClick={() => openFileInTab(file.path)}
+              onContextMenu={(e) => handleContextMenu(e, file.path, false)}
               className={`group flex items-center justify-between px-3 py-1.5 cursor-pointer transition-colors ${
                 isCurrentActive
                   ? 'bg-[#1b1b24] text-white font-medium border-l-2 border-[#818cf8]'
                   : 'hover:bg-[#16161c] text-[#a1a1aa] hover:text-[#ededee]'
               }`}
+              title={`${file.path} (Right-click for menu)`}
             >
               <div className="flex items-center space-x-2 truncate flex-1 min-w-0">
                 {getFileIcon(file.path)}
                 <span className="truncate text-[11px]">{file.path}</span>
               </div>
 
-              {/* Status Indicator */}
-              <div className="flex items-center space-x-1.5 ml-2">
+              {/* Status Indicator & Hover Actions */}
+              <div className="flex items-center space-x-1 ml-2">
                 {isModified && (
                   <span
                     className={`text-[9px] font-bold px-1 rounded ${
@@ -182,18 +263,56 @@ export const FileExplorerSidebar: React.FC = () => {
                   </span>
                 )}
 
-                {files.length > 1 && (
+                {/* Quick Hover Actions */}
+                <div className="opacity-0 group-hover:opacity-100 flex items-center space-x-0.5 transition-opacity">
+                  {/* Download */}
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
-                      deleteFile(file.path);
+                      downloadSingleFile(file.path);
                     }}
-                    className="opacity-0 group-hover:opacity-100 p-0.5 hover:text-[#f43f5e] text-[#52525b] transition-opacity"
+                    className="p-0.5 hover:text-white text-[#71717a] rounded"
+                    title="Download file"
+                  >
+                    <Download className="w-3 h-3" />
+                  </button>
+
+                  {/* Duplicate */}
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      duplicateFile(file.path);
+                    }}
+                    className="p-0.5 hover:text-white text-[#71717a] rounded"
+                    title="Duplicate file"
+                  >
+                    <Copy className="w-3 h-3" />
+                  </button>
+
+                  {/* Rename */}
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setModalState({ isOpen: true, type: 'rename', targetPath: file.path, isFolder: false });
+                    }}
+                    className="p-0.5 hover:text-white text-[#71717a] rounded"
+                    title="Rename file"
+                  >
+                    <Edit3 className="w-3 h-3" />
+                  </button>
+
+                  {/* Delete */}
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setModalState({ isOpen: true, type: 'delete', targetPath: file.path, isFolder: false });
+                    }}
+                    className="p-0.5 hover:text-[#fb7185] text-[#71717a] rounded"
                     title="Delete File"
                   >
                     <Trash2 className="w-3 h-3" />
                   </button>
-                )}
+                </div>
               </div>
             </div>
           );
@@ -204,10 +323,39 @@ export const FileExplorerSidebar: React.FC = () => {
       <div className="p-2 border-t border-[#1e1e24] bg-[#0e0e11] text-[10px] text-[#71717a] flex items-center justify-between">
         <span className="flex items-center space-x-1">
           <span className="w-1.5 h-1.5 rounded-full bg-[#10b981]" />
-          <span>Ready</span>
+          <span>Workspace synced</span>
         </span>
-        <span className="font-mono text-[9px]">UTF-8</span>
+        <span className="font-mono text-[9px]">{files.length} items</span>
       </div>
+
+      {/* Context Menu */}
+      <FileContextMenu
+        isOpen={contextMenu.isOpen}
+        position={contextMenu.position}
+        targetPath={contextMenu.targetPath}
+        isFolder={contextMenu.isFolder}
+        isTab={false}
+        isModified={contextMenu.isModified}
+        onClose={() => setContextMenu(prev => ({ ...prev, isOpen: false }))}
+        onOpenInEditor={(path) => openFileInTab(path)}
+        onOpenInDiff={() => setViewMode('diff')}
+        onRename={(path, isFolder) => setModalState({ isOpen: true, type: 'rename', targetPath: path, isFolder })}
+        onDuplicate={(path) => duplicateFile(path)}
+        onDelete={(path, isFolder) => setModalState({ isOpen: true, type: 'delete', targetPath: path, isFolder })}
+        onRevert={(path) => revertFile(path)}
+        onDownload={(path) => downloadSingleFile(path)}
+        onNewFileInFolder={(folderPath) => setModalState({ isOpen: true, type: 'new-file', targetPath: folderPath, isFolder: true })}
+        onNewFolderInFolder={(folderPath) => setModalState({ isOpen: true, type: 'new-folder', targetPath: folderPath, isFolder: true })}
+      />
+
+      {/* File Action Modal */}
+      <FileOperationModal
+        isOpen={modalState.isOpen}
+        type={modalState.type}
+        targetPath={modalState.targetPath}
+        isFolder={modalState.isFolder}
+        onClose={() => setModalState(prev => ({ ...prev, isOpen: false }))}
+      />
     </div>
   );
 };

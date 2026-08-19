@@ -165,20 +165,22 @@ export interface Note {
   updatedAt: string;
 }
 
-export interface UserProfile {
-  id: string;
-  email: string;
-  name: string;
-  avatarUrl?: string;
-  isVerified: boolean;
-  verifiedAt?: string;
-  provider: 'gmail' | 'email';
-  token?: string;
-  preferences?: {
-    theme?: string;
-    defaultModel?: string;
-    autoSave?: boolean;
-  };
+export interface PasscodeConfig {
+  hasPasscode: boolean;
+  isUnlocked: boolean;
+  hint?: string;
+  developerName?: string;
+  createdAt?: string;
+  hashAlgorithm?: string;
+  hashPreview?: string; // e.g. "sha256:7f83b165...e24"
+  salt?: string;
+  failedAttempts?: number;
+}
+
+export interface PasscodeSession {
+  isUnlocked: boolean;
+  sessionToken?: string;
+  unlockedAt?: string;
 }
 
 export interface PythonAgentFile {
@@ -208,12 +210,29 @@ export interface ProjectTemplate {
   files: RepoFile[];
 }
 
-export interface AuthState {
-  user: UserProfile | null;
-  isAuthenticated: boolean;
-  isAuthModalOpen: boolean;
-  pendingEmail?: string;
-  codeSentTime?: number;
-  latestPreviewCode?: string;
+export type PasscodeModalMode = 'authorize' | 'create' | 'change' | 'security_info';
+
+export interface SecurityAuditItem {
+  id: string;
+  title: string;
+  status: 'DONE' | 'IN_PROGRESS' | 'TODO';
+  details: string;
+  technologies: string[];
+}
+
+export interface SecurityAuditData {
+  success: boolean;
+  timestamp: string;
+  checklist: SecurityAuditItem[];
+  metrics: {
+    hasPasscode: boolean;
+    isUnlocked: boolean;
+    failedAttempts: number;
+    isLockedOut: boolean;
+    activeRateLimitedIps: number;
+    algorithm: string;
+    workFactor: string;
+    encryption: string;
+  };
 }
 

@@ -15,7 +15,10 @@ import {
   Terminal, 
   Activity,
   Layers,
-  AtSign
+  AtSign,
+  Lock,
+  Unlock,
+  KeyRound
 } from 'lucide-react';
 import { AgentRole } from '../../types';
 
@@ -28,8 +31,8 @@ export const MultiAgentSidebar: React.FC = () => {
     runAllAgents,
     runSingleAgent,
     stopAgents,
-    byok,
-    setIsByokModalOpen,
+    passcodeConfig,
+    openPasscodeModal,
     setActiveBottomTab,
     setIsBottomPanelOpen
   } = useIDE();
@@ -87,12 +90,48 @@ export const MultiAgentSidebar: React.FC = () => {
               </span>
             </div>
             <button
-              onClick={() => setIsByokModalOpen(true)}
-              className="text-[#71717a] hover:text-[#d4d4d8] font-mono truncate max-w-[120px] transition-colors"
+              onClick={() => {
+                if (!passcodeConfig?.isUnlocked) {
+                  openPasscodeModal('authorize');
+                } else {
+                  openPasscodeModal('security_info');
+                }
+              }}
+              className={`font-mono text-[9px] px-2 py-0.5 rounded border flex items-center space-x-1 transition-colors ${
+                passcodeConfig?.isUnlocked
+                  ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20 hover:bg-emerald-500/20'
+                  : 'bg-amber-500/10 text-amber-300 border-amber-500/30 hover:bg-amber-500/20 animate-pulse'
+              }`}
             >
-              {byok.isKeyVerified ? byok.selectedModel : 'gemini-3.7-flash'}
+              {passcodeConfig?.isUnlocked ? (
+                <>
+                  <ShieldCheck className="w-2.5 h-2.5" />
+                  <span>Passcode Verified</span>
+                </>
+              ) : (
+                <>
+                  <Lock className="w-2.5 h-2.5" />
+                  <span>Passcode Required</span>
+                </>
+              )}
             </button>
           </div>
+
+          {/* Locked Notice Alert Banner */}
+          {!passcodeConfig?.isUnlocked && (
+            <div className="bg-[#241814] border border-amber-500/30 rounded p-2 flex items-center justify-between text-[11px] text-amber-200">
+              <div className="flex items-center space-x-1.5 truncate">
+                <Lock className="w-3.5 h-3.5 text-amber-400 flex-shrink-0" />
+                <span className="truncate">Passcode required to start AI agents</span>
+              </div>
+              <button
+                onClick={() => openPasscodeModal('authorize')}
+                className="px-2 py-0.5 bg-amber-500 hover:bg-amber-400 text-black font-semibold rounded text-[10px] ml-1 flex-shrink-0 transition-colors cursor-pointer"
+              >
+                Unlock
+              </button>
+            </div>
+          )}
 
           <textarea
             value={customPrompt}
@@ -135,10 +174,23 @@ export const MultiAgentSidebar: React.FC = () => {
             ) : (
               <button
                 onClick={() => handleRunAll()}
-                className="px-3 py-1 bg-[#6366f1] hover:bg-[#4f46e5] text-white font-medium rounded text-[11px] flex items-center space-x-1.5 transition-all shadow-xs"
+                className={`px-3 py-1 text-white font-medium rounded text-[11px] flex items-center space-x-1.5 transition-all shadow-xs ${
+                  !passcodeConfig?.isUnlocked
+                    ? 'bg-amber-600 hover:bg-amber-500'
+                    : 'bg-[#6366f1] hover:bg-[#4f46e5]'
+                }`}
               >
-                <Sparkles className="w-3 h-3 text-[#c7d2fe]" />
-                <span>Run 4 Agents</span>
+                {!passcodeConfig?.isUnlocked ? (
+                  <>
+                    <Lock className="w-3 h-3 text-amber-200" />
+                    <span>Authorize & Run</span>
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="w-3 h-3 text-[#c7d2fe]" />
+                    <span>Run 4 Agents</span>
+                  </>
+                )}
               </button>
             )}
           </div>
@@ -257,19 +309,25 @@ export const MultiAgentSidebar: React.FC = () => {
         </div>
       </div>
 
-      {/* Footer BYOK status */}
+      {/* Footer Passcode Security status */}
       <div className="p-2 border-t border-[#1e1e24] bg-[#0e0e11] flex items-center justify-between text-[10px]">
         <div className="flex items-center space-x-1.5 truncate text-[#71717a]">
-          <span className={`w-1.5 h-1.5 rounded-full ${byok.isKeyVerified ? 'bg-[#10b981]' : 'bg-[#f59e0b]'}`} />
+          <span className={`w-1.5 h-1.5 rounded-full ${passcodeConfig?.isUnlocked ? 'bg-[#10b981]' : 'bg-amber-400'}`} />
           <span className="truncate">
-            {byok.isKeyVerified ? `BYOK: ${byok.selectedModel}` : 'Studio Key'}
+            {passcodeConfig?.isUnlocked ? 'Security: PIN Authorized' : 'Security: PIN Locked'}
           </span>
         </div>
         <button
-          onClick={() => setIsByokModalOpen(true)}
-          className="text-[#818cf8] hover:text-white font-medium text-[10px] ml-2"
+          onClick={() => {
+            if (!passcodeConfig?.isUnlocked) {
+              openPasscodeModal('authorize');
+            } else {
+              openPasscodeModal('security_info');
+            }
+          }}
+          className="text-[#818cf8] hover:text-white font-medium text-[10px] ml-2 cursor-pointer"
         >
-          Keys
+          {passcodeConfig?.isUnlocked ? 'Crypto' : 'Unlock'}
         </button>
       </div>
     </div>

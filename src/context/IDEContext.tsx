@@ -1,12 +1,29 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import JSZip from 'jszip';
-import { RepoFile, AgentInfo, AgentRole, CodeBug, ReviewAnnotation, CodeReviewScorecard, GitCommit, GitBranch, PullRequest, BYOKSettings, UserProfile, ProjectTemplate } from '../types';
+import { RepoFile, AgentInfo, AgentRole, CodeBug, ReviewAnnotation, CodeReviewScorecard, GitCommit, GitBranch, PullRequest, BYOKSettings, ProjectTemplate, PasscodeConfig, PasscodeModalMode } from '../types';
 import { INITIAL_TARGET_REPO_FILES, MODIFIED_TARGET_REPO_FILES } from '../data/targetRepoData';
 import { INITIAL_AGENTS, INITIAL_BYOK_SETTINGS, INITIAL_BUGS, INITIAL_REVIEWS, INITIAL_SCORECARD, INITIAL_COMMITS, INITIAL_BRANCHES, INITIAL_PULL_REQUESTS } from '../data/agentData';
 import { PROJECT_TEMPLATES } from '../data/projectTemplates';
 import { PYTHON_AGENT_FILES } from '../data/pythonAgentSource';
 
 interface IDEContextType {
+  // Passcode Security & Cryptographic Authorization
+  passcodeConfig: PasscodeConfig | null;
+  isPasscodeModalOpen: boolean;
+  setIsPasscodeModalOpen: (open: boolean) => void;
+  passcodeModalMode: PasscodeModalMode;
+  setPasscodeModalMode: (mode: PasscodeModalMode) => void;
+  openPasscodeModal: (mode?: PasscodeModalMode) => void;
+  isSecurityGuideModalOpen: boolean;
+  setIsSecurityGuideModalOpen: (open: boolean) => void;
+  openSecurityGuideModal: () => void;
+  authorizePasscode: (passcode: string) => Promise<{ success: boolean; message: string; error?: string; remainingSeconds?: number }>;
+  createPasscode: (passcode: string, hint?: string, developerName?: string) => Promise<{ success: boolean; message: string; error?: string }>;
+  changePasscode: (currentPasscode: string, newPasscode: string, newHint?: string, developerName?: string) => Promise<{ success: boolean; message: string; error?: string }>;
+  lockSession: () => Promise<void>;
+  removePasscode: (currentPasscode: string) => Promise<{ success: boolean; message: string; error?: string }>;
+  fetchPasscodeStatus: () => Promise<void>;
+
   // Project Management & Import / Export
   projectName: string;
   setProjectName: (name: string) => void;
@@ -23,16 +40,6 @@ interface IDEContextType {
   importProjectFromJson: (jsonString: string) => { success: boolean; count?: number; error?: string };
   exportProjectZip: (customName?: string) => Promise<void>;
   exportProjectJson: (customName?: string) => void;
-
-  // User Authentication & Email Verification
-  user: UserProfile | null;
-  isAuthModalOpen: boolean;
-  setIsAuthModalOpen: (open: boolean) => void;
-  latestPreviewCode?: string;
-  sendVerificationCode: (email: string, name?: string) => Promise<{ success: boolean; message: string; previewCode?: string; error?: string }>;
-  verifyCode: (email: string, code: string, name?: string) => Promise<{ success: boolean; message: string; user?: UserProfile; error?: string }>;
-  resendVerificationCode: (email: string) => Promise<{ success: boolean; message: string; previewCode?: string; error?: string }>;
-  logout: () => Promise<void>;
 
   // Files & Editor State
   files: RepoFile[];
@@ -97,13 +104,23 @@ interface IDEContextType {
   activePR: PullRequest | null;
   setActivePR: (pr: PullRequest | null) => void;
   
-  // Actions
+  // Actions & File Management
   setActiveFilePath: (path: string) => void;
   openFileInTab: (path: string) => void;
   closeTab: (path: string) => void;
+  closeAllTabs: () => void;
+  closeOtherTabs: (path: string) => void;
+  closeSavedTabs: () => void;
   updateFileContent: (path: string, content: string) => void;
   createNewFile: (path: string, content?: string) => void;
+  createFolder: (folderPath: string) => void;
   deleteFile: (path: string) => void;
+  deleteFolder: (folderPath: string) => void;
+  renameFile: (oldPath: string, newPath: string) => boolean;
+  duplicateFile: (path: string) => string;
+  revertFile: (path: string) => void;
+  revertAllFiles: () => void;
+  downloadSingleFile: (path: string) => void;
   setViewMode: (mode: 'editor' | 'diff') => void;
   setActiveSidebarTab: (tab: 'explorer' | 'agents' | 'review' | 'bugs' | 'git' | 'settings') => void;
   setIsSidebarOpen: (open: boolean) => void;
@@ -232,7 +249,7 @@ export const IDEProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       {
         id: 'c_' + Math.random().toString(36).substring(2, 7),
         message: `feat(init): initialize project from ${template.name}`,
-        author: user?.name || 'Omkar Chavan',
+        author: 'Developer',
         timestamp: 'Just now',
         hash: Math.random().toString(16).substring(2, 9),
         filesCount: template.files.length,
@@ -301,7 +318,7 @@ export const IDEProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         {
           id: 'c_import_' + Math.random().toString(36).substring(2, 7),
           message: `chore: import project from archive ${file.name}`,
-          author: user?.name || 'Omkar Chavan',
+          author: 'Developer',
           timestamp: 'Just now',
           hash: Math.random().toString(16).substring(2, 9),
           filesCount: parsedFiles.length,
@@ -419,8 +436,8 @@ export const IDEProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         {
           name: activeProjectName,
           exportedAt: new Date().toISOString(),
-          author: user?.name || 'Omkar Chavan',
-          email: user?.email || 'oomkarchavan@gmail.com',
+          author: 'Developer',
+          email: 'developer@local.dev',
           totalFiles: files.length,
           files: files.map(f => ({ path: f.path, language: f.language, lines: f.content.split('\n').length }))
         },
@@ -432,7 +449,7 @@ export const IDEProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     zip.file(
       'AI_AGENTS_ARCHITECTURE.md',
       `# ${activeProjectName} - Autonomous AI IDE Export
-## Author: ${user?.name || 'Omkar Chavan'} (${user?.email || 'oomkarchavan@gmail.com'})
+## Author: Developer
 ## Export Date: ${new Date().toLocaleString()}
 
 ### 4 Autonomous AI Agents Summary
@@ -460,8 +477,8 @@ export const IDEProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const payload = {
       name: activeProjectName,
       exportedAt: new Date().toISOString(),
-      author: user?.name || 'Omkar Chavan',
-      email: user?.email || 'oomkarchavan@gmail.com',
+      author: 'Developer',
+      email: 'developer@local.dev',
       files
     };
 
@@ -476,137 +493,131 @@ export const IDEProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     URL.revokeObjectURL(url);
   };
 
-  // User Authentication & Email Verification State
-  const [user, setUser] = useState<UserProfile | null>(() => {
-    try {
-      const saved = localStorage.getItem('cursor_auth_user');
-      if (saved) return JSON.parse(saved);
-    } catch (e) {}
-    // Seed default verified developer profile (Omkar Chavan / Gmail)
-    return {
-      id: "usr_default_1",
-      email: "oomkarchavan@gmail.com",
-      name: "Omkar Chavan",
-      avatarUrl: "https://api.dicebear.com/7.x/bottts/svg?seed=oomkarchavan@gmail.com",
-      isVerified: true,
-      verifiedAt: new Date().toISOString(),
-      provider: "gmail",
-      token: "cursor_auth_jwt_oomkarchavan_verified"
-    };
+  // ==================== PASSCODE SECURITY STATE & HANDLERS ====================
+  const [passcodeConfig, setPasscodeConfig] = useState<PasscodeConfig | null>({
+    hasPasscode: true,
+    isUnlocked: true,
+    hint: "Default developer PIN is 1234",
+    developerName: "Omkar Chavan",
+    hashAlgorithm: "PBKDF2-HMAC-SHA256 (100,000 rounds)"
   });
-  const [isAuthModalOpen, setIsAuthModalOpen] = useState<boolean>(false);
-  const [latestPreviewCode, setLatestPreviewCode] = useState<string | undefined>(undefined);
+  const [isPasscodeModalOpen, setIsPasscodeModalOpen] = useState(false);
+  const [passcodeModalMode, setPasscodeModalMode] = useState<PasscodeModalMode>('authorize');
+  const [isSecurityGuideModalOpen, setIsSecurityGuideModalOpen] = useState(false);
 
-  // Send Verification Code to Email / Gmail
-  const sendVerificationCode = async (email: string, name?: string) => {
+  const openSecurityGuideModal = () => {
+    setIsSecurityGuideModalOpen(true);
+  };
+
+  const fetchPasscodeStatus = useCallback(async () => {
     try {
-      const res = await fetch('/api/auth/send-code', {
+      const res = await fetch('/api/passcode/status');
+      const data = await res.json();
+      setPasscodeConfig(data);
+    } catch (e) {
+      console.warn("Failed to fetch passcode status:", e);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchPasscodeStatus();
+  }, [fetchPasscodeStatus]);
+
+  const openPasscodeModal = (mode: PasscodeModalMode = 'authorize') => {
+    setPasscodeModalMode(mode);
+    setIsPasscodeModalOpen(true);
+  };
+
+  const authorizePasscode = async (passcode: string) => {
+    try {
+      const res = await fetch('/api/passcode/authorize', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, name })
+        body: JSON.stringify({ passcode })
       });
       const data = await res.json();
       if (data.success) {
-        if (data.previewCode) {
-          setLatestPreviewCode(data.previewCode);
-        }
-        return {
-          success: true,
-          message: data.message || `Verification code sent to ${email}`,
-          previewCode: data.previewCode
-        };
+        await fetchPasscodeStatus();
+        setIsPasscodeModalOpen(false);
+        return { success: true, message: data.message || "Passcode authorized successfully!" };
       }
-      return {
-        success: false,
-        message: data.error || 'Failed to send verification code.',
-        error: data.error
+      await fetchPasscodeStatus();
+      return { 
+        success: false, 
+        message: data.error || "Incorrect passcode.", 
+        error: data.error,
+        remainingSeconds: data.remainingSeconds 
       };
     } catch (err: any) {
-      return {
-        success: false,
-        message: err.message || 'Network error while sending verification code.',
-        error: err.message
-      };
+      return { success: false, message: err.message || "Network error", error: err.message };
     }
   };
 
-  // Verify Code & Sign In / Register
-  const verifyCode = async (email: string, code: string, name?: string) => {
+  const createPasscode = async (passcode: string, hint?: string, developerName?: string) => {
     try {
-      const res = await fetch('/api/auth/verify-code', {
+      const res = await fetch('/api/passcode/create', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, code, name })
-      });
-      const data = await res.json();
-      if (data.success && data.user) {
-        setUser(data.user);
-        try {
-          localStorage.setItem('cursor_auth_user', JSON.stringify(data.user));
-        } catch (e) {}
-        setLatestPreviewCode(undefined);
-        return {
-          success: true,
-          message: data.message || 'Email verified successfully!',
-          user: data.user
-        };
-      }
-      return {
-        success: false,
-        message: data.error || 'Invalid verification code.',
-        error: data.error
-      };
-    } catch (err: any) {
-      return {
-        success: false,
-        message: err.message || 'Error verifying code.',
-        error: err.message
-      };
-    }
-  };
-
-  // Resend Verification Code
-  const resendVerificationCode = async (email: string) => {
-    try {
-      const res = await fetch('/api/auth/resend-code', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email })
+        body: JSON.stringify({ passcode, hint, developerName })
       });
       const data = await res.json();
       if (data.success) {
-        if (data.previewCode) {
-          setLatestPreviewCode(data.previewCode);
-        }
-        return {
-          success: true,
-          message: data.message || `New code sent to ${email}`,
-          previewCode: data.previewCode
-        };
+        await fetchPasscodeStatus();
+        setIsPasscodeModalOpen(false);
+        return { success: true, message: data.message || "Passcode created!" };
       }
-      return {
-        success: false,
-        message: data.error || 'Failed to resend code.',
-        error: data.error
-      };
+      return { success: false, message: data.error || "Failed to create passcode.", error: data.error };
     } catch (err: any) {
-      return {
-        success: false,
-        message: err.message || 'Error resending code.',
-        error: err.message
-      };
+      return { success: false, message: err.message || "Network error", error: err.message };
     }
   };
 
-  // Logout User
-  const logout = async () => {
+  const changePasscode = async (currentPasscode: string, newPasscode: string, newHint?: string, developerName?: string) => {
     try {
-      await fetch('/api/auth/logout', { method: 'POST' });
-    } catch (e) {}
-    setUser(null);
+      const res = await fetch('/api/passcode/change', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ currentPasscode, newPasscode, newHint, developerName })
+      });
+      const data = await res.json();
+      if (data.success) {
+        await fetchPasscodeStatus();
+        setIsPasscodeModalOpen(false);
+        return { success: true, message: data.message || "Passcode updated!" };
+      }
+      return { success: false, message: data.error || "Failed to update passcode.", error: data.error };
+    } catch (err: any) {
+      return { success: false, message: err.message || "Network error", error: err.message };
+    }
+  };
+
+  const lockSession = async () => {
     try {
-      localStorage.removeItem('cursor_auth_user');
-    } catch (e) {}
+      await fetch('/api/passcode/lock', { method: 'POST' });
+      await fetchPasscodeStatus();
+      openPasscodeModal('authorize');
+    } catch (e) {
+      console.warn("Failed to lock session:", e);
+    }
+  };
+
+  const removePasscode = async (currentPasscode: string) => {
+    try {
+      const res = await fetch('/api/passcode/remove', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ currentPasscode })
+      });
+      const data = await res.json();
+      if (data.success) {
+        await fetchPasscodeStatus();
+        setIsPasscodeModalOpen(false);
+        return { success: true, message: data.message || "Passcode removed." };
+      }
+      return { success: false, message: data.error || "Failed to remove passcode.", error: data.error };
+    } catch (err: any) {
+      return { success: false, message: err.message || "Network error", error: err.message };
+    }
   };
 
   // Sync BYOK settings to localStorage
@@ -667,6 +678,29 @@ export const IDEProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   };
 
+  const closeAllTabs = () => {
+    setOpenTabs([]);
+    setActiveFilePath('');
+  };
+
+  const closeOtherTabs = (path: string) => {
+    setOpenTabs([path]);
+    setActiveFilePath(path);
+  };
+
+  const closeSavedTabs = () => {
+    const remaining = openTabs.filter(p => {
+      const f = files.find(file => file.path === p);
+      return f?.isModified || stagedFiles.includes(p) || unstagedFiles.includes(p);
+    });
+    setOpenTabs(remaining);
+    if (remaining.length === 0) {
+      setActiveFilePath('');
+    } else if (!remaining.includes(activeFilePath)) {
+      setActiveFilePath(remaining[0]);
+    }
+  };
+
   const updateFileContent = (path: string, content: string) => {
     setFiles(prev => prev.map(f => {
       if (f.path === path) {
@@ -680,7 +714,13 @@ export const IDEProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const createNewFile = (path: string, content: string = '') => {
-    const ext = path.split('.').pop() || 'js';
+    const cleanPath = path.trim().replace(/^\/+/, '');
+    if (!cleanPath) return;
+    if (files.some(f => f.path === cleanPath)) {
+      openFileInTab(cleanPath);
+      return;
+    }
+    const ext = cleanPath.split('.').pop() || 'js';
     const langMap: Record<string, string> = {
       js: 'javascript',
       ts: 'typescript',
@@ -693,21 +733,156 @@ export const IDEProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       html: 'html'
     };
     const newFile: RepoFile = {
-      path,
-      name: path.split('/').pop() || path,
+      path: cleanPath,
+      name: cleanPath.split('/').pop() || cleanPath,
       content,
-      language: langMap[ext] || 'plaintext',
+      language: langMap[ext] || detectLanguage(cleanPath),
       isNew: true,
       isModified: true
     };
     setFiles(prev => [...prev, newFile]);
-    openFileInTab(path);
-    setUnstagedFiles(prev => [...prev, path]);
+    openFileInTab(cleanPath);
+    setUnstagedFiles(prev => [...prev, cleanPath]);
+  };
+
+  const createFolder = (folderPath: string) => {
+    const cleanFolder = folderPath.trim().replace(/^\/+/, '').replace(/\/+$/, '');
+    if (!cleanFolder) return;
+    const placeholderPath = `${cleanFolder}/.gitkeep`;
+    if (!files.some(f => f.path === placeholderPath)) {
+      createNewFile(placeholderPath, '# Folder placeholder\n');
+    }
   };
 
   const deleteFile = (path: string) => {
     setFiles(prev => prev.filter(f => f.path !== path));
-    closeTab(path);
+    setStagedFiles(prev => prev.filter(p => p !== path));
+    setUnstagedFiles(prev => prev.filter(p => p !== path));
+    setOpenTabs(prev => {
+      const nextTabs = prev.filter(t => t !== path);
+      if (activeFilePath === path) {
+        setActiveFilePath(nextTabs[nextTabs.length - 1] || '');
+      }
+      return nextTabs;
+    });
+  };
+
+  const deleteFolder = (folderPath: string) => {
+    const cleanPrefix = folderPath.trim().replace(/^\/+/, '').replace(/\/+$/, '') + '/';
+    const pathsToDelete = files.filter(f => f.path.startsWith(cleanPrefix) || f.path === folderPath).map(f => f.path);
+    setFiles(prev => prev.filter(f => !pathsToDelete.includes(f.path)));
+    setStagedFiles(prev => prev.filter(p => !pathsToDelete.includes(p)));
+    setUnstagedFiles(prev => prev.filter(p => !pathsToDelete.includes(p)));
+    setOpenTabs(prev => {
+      const nextTabs = prev.filter(t => !pathsToDelete.includes(t));
+      if (pathsToDelete.includes(activeFilePath)) {
+        setActiveFilePath(nextTabs[nextTabs.length - 1] || '');
+      }
+      return nextTabs;
+    });
+  };
+
+  const renameFile = (oldPath: string, newPath: string): boolean => {
+    const trimmed = newPath.trim().replace(/^\/+/, '');
+    if (!trimmed || oldPath === trimmed) return false;
+    if (files.some(f => f.path === trimmed)) {
+      return false;
+    }
+    const newLang = detectLanguage(trimmed);
+    setFiles(prev => prev.map(f => {
+      if (f.path === oldPath) {
+        return {
+          ...f,
+          path: trimmed,
+          name: trimmed.split('/').pop() || trimmed,
+          language: newLang,
+          isModified: true
+        };
+      }
+      return f;
+    }));
+    setOpenTabs(prev => prev.map(p => p === oldPath ? trimmed : p));
+    if (activeFilePath === oldPath) {
+      setActiveFilePath(trimmed);
+    }
+    setStagedFiles(prev => prev.map(p => p === oldPath ? trimmed : p));
+    setUnstagedFiles(prev => prev.map(p => p === oldPath ? trimmed : p));
+    return true;
+  };
+
+  const duplicateFile = (path: string): string => {
+    const target = files.find(f => f.path === path);
+    if (!target) return '';
+    
+    const lastDotIdx = path.lastIndexOf('.');
+    let candidatePath = '';
+    if (lastDotIdx > 0) {
+      candidatePath = `${path.substring(0, lastDotIdx)}.copy${path.substring(lastDotIdx)}`;
+    } else {
+      candidatePath = `${path}.copy`;
+    }
+    
+    let counter = 1;
+    let finalPath = candidatePath;
+    while (files.some(f => f.path === finalPath)) {
+      if (lastDotIdx > 0) {
+        finalPath = `${path.substring(0, lastDotIdx)}.copy${counter}${path.substring(lastDotIdx)}`;
+      } else {
+        finalPath = `${path}.copy${counter}`;
+      }
+      counter++;
+    }
+    
+    const newFile: RepoFile = {
+      path: finalPath,
+      name: finalPath.split('/').pop() || finalPath,
+      content: target.content,
+      language: target.language,
+      isNew: true,
+      isModified: true
+    };
+    
+    setFiles(prev => [...prev, newFile]);
+    openFileInTab(finalPath);
+    setUnstagedFiles(prev => [...prev, finalPath]);
+    return finalPath;
+  };
+
+  const downloadSingleFile = (path: string) => {
+    const file = files.find(f => f.path === path);
+    if (!file) return;
+    const blob = new Blob([file.content], { type: 'text/plain;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = file.path.split('/').pop() || 'download.txt';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
+  const revertFile = (path: string) => {
+    const original = diffBaseFiles.find(f => f.path === path) || INITIAL_TARGET_REPO_FILES.find(f => f.path === path);
+    if (original) {
+      setFiles(prev => prev.map(f => f.path === path ? { ...f, content: original.content, isModified: false } : f));
+    } else {
+      setFiles(prev => prev.map(f => f.path === path ? { ...f, isModified: false } : f));
+    }
+    setStagedFiles(prev => prev.filter(p => p !== path));
+    setUnstagedFiles(prev => prev.filter(p => p !== path));
+  };
+
+  const revertAllFiles = () => {
+    setFiles(prev => prev.map(f => {
+      const orig = diffBaseFiles.find(b => b.path === f.path) || INITIAL_TARGET_REPO_FILES.find(b => b.path === f.path);
+      if (orig) {
+        return { ...f, content: orig.content, isModified: false };
+      }
+      return { ...f, isModified: false };
+    }));
+    setStagedFiles([]);
+    setUnstagedFiles([]);
   };
 
   const stageFile = (path: string) => {
@@ -873,6 +1048,12 @@ export const IDEProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   // Run all 4 agents simultaneously in parallel pipeline
   const runAllAgents = async (customPrompt?: string) => {
+    // Mandatory Passcode Check: Must be authorized to start the 4 AI Agents
+    if (passcodeConfig?.hasPasscode && !passcodeConfig?.isUnlocked) {
+      openPasscodeModal('authorize');
+      return;
+    }
+
     const promptText = customPrompt || 'Improve the application so users can better organise and search their notes.';
     setIsAnyAgentRunning(true);
     setOrchestratorProgress(10);
@@ -890,17 +1071,13 @@ export const IDEProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     })));
 
     try {
-      // Trigger server orchestration endpoint (with BYOK key if present)
-      const apiKeyToUse = byok.useCustomKey ? (byok.provider === 'gemini' ? byok.geminiApiKey : byok.openaiApiKey) : undefined;
-      
+      // Trigger server orchestration endpoint (Zero API Keys / SMTP required, secured by Passcode)
       const serverPromise = fetch('/api/agent/orchestrate-4', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           prompt: promptText,
-          files: files.map(f => ({ path: f.path, content: f.content })),
-          customApiKey: apiKeyToUse,
-          selectedModel: byok.selectedModel
+          files: files.map(f => ({ path: f.path, content: f.content }))
         })
       });
 
@@ -1016,6 +1193,12 @@ export const IDEProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   // Run a single specific agent
   const runSingleAgent = async (role: AgentRole, customPrompt?: string) => {
+    // Mandatory Passcode Check: Must be authorized to start the AI Coding Agent
+    if (passcodeConfig?.hasPasscode && !passcodeConfig?.isUnlocked) {
+      openPasscodeModal('authorize');
+      return;
+    }
+
     setIsAnyAgentRunning(true);
     setAgents(prev => prev.map(a => a.id === role ? { ...a, status: 'running', progress: 30, currentAction: 'Executing focused task...' } : a));
 
@@ -1095,6 +1278,23 @@ export const IDEProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   return (
     <IDEContext.Provider
       value={{
+        // Passcode Security
+        passcodeConfig,
+        isPasscodeModalOpen,
+        setIsPasscodeModalOpen,
+        passcodeModalMode,
+        setPasscodeModalMode,
+        openPasscodeModal,
+        isSecurityGuideModalOpen,
+        setIsSecurityGuideModalOpen,
+        openSecurityGuideModal,
+        authorizePasscode,
+        createPasscode,
+        changePasscode,
+        lockSession,
+        removePasscode,
+        fetchPasscodeStatus,
+
         // Project Management
         projectName,
         setProjectName,
@@ -1111,16 +1311,6 @@ export const IDEProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         importProjectFromJson,
         exportProjectZip,
         exportProjectJson,
-
-        // Authentication & Verification
-        user,
-        isAuthModalOpen,
-        setIsAuthModalOpen,
-        latestPreviewCode,
-        sendVerificationCode,
-        verifyCode,
-        resendVerificationCode,
-        logout,
 
         // Codebase & Editor
         files,
@@ -1175,9 +1365,19 @@ export const IDEProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         setActiveFilePath,
         openFileInTab,
         closeTab,
+        closeAllTabs,
+        closeOtherTabs,
+        closeSavedTabs,
         updateFileContent,
         createNewFile,
+        createFolder,
         deleteFile,
+        deleteFolder,
+        renameFile,
+        duplicateFile,
+        revertFile,
+        revertAllFiles,
+        downloadSingleFile,
         setViewMode,
         setActiveSidebarTab,
         setIsSidebarOpen,

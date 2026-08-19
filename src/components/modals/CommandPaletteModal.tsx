@@ -11,7 +11,12 @@ import {
   FolderPlus,
   Upload,
   Download,
-  LogOut
+  XCircle,
+  RotateCcw,
+  FilePlus,
+  Trash2,
+  Lock,
+  KeyRound
 } from 'lucide-react';
 import { AgentRole } from '../../types';
 
@@ -25,8 +30,17 @@ export const CommandPaletteModal: React.FC = () => {
     openNewProjectModal,
     openImportProjectModal,
     openExportProjectModal,
-    logout,
-    user
+    passcodeConfig,
+    openPasscodeModal,
+    openSecurityGuideModal,
+    lockSession,
+    closeAllTabs,
+    closeOtherTabs,
+    closeSavedTabs,
+    revertAllFiles,
+    revertFile,
+    deleteFile,
+    downloadSingleFile
   } = useIDE();
 
   const [prompt, setPrompt] = useState('');
@@ -76,6 +90,99 @@ export const CommandPaletteModal: React.FC = () => {
 
         {/* Quick Action Commands */}
         <div className="p-2.5 space-y-3 max-h-[70vh] overflow-y-auto">
+          {/* Passcode Security Commands */}
+          <div>
+            <span className="text-[10px] text-[#71717a] uppercase tracking-wider font-semibold px-1.5 block mb-1 flex items-center justify-between">
+              <span>Passcode & Cryptographic Security</span>
+              <span className="text-[9px] text-emerald-400 font-mono">PBKDF2 SHA-256</span>
+            </span>
+            <div className="space-y-1">
+              <button
+                onClick={() => {
+                  setIsCommandPaletteOpen(false);
+                  lockSession();
+                }}
+                className="w-full p-2 rounded-lg bg-[#15151a] hover:bg-[#1c1c24] border border-[#202028] flex items-center justify-between text-left transition-all group"
+              >
+                <div className="flex items-center space-x-2.5">
+                  <Lock className="w-3.5 h-3.5 text-amber-400" />
+                  <div>
+                    <div className="font-medium text-[#ededee] group-hover:text-white text-[11px]">
+                      Lock IDE Session
+                    </div>
+                    <span className="text-[10px] text-[#71717a]">
+                      Locks workspace immediately; requires unique passcode to decrypt and authorize.
+                    </span>
+                  </div>
+                </div>
+                <ArrowRight className="w-3 h-3 text-[#52525b] group-hover:text-white" />
+              </button>
+
+              <button
+                onClick={() => {
+                  setIsCommandPaletteOpen(false);
+                  openPasscodeModal('change');
+                }}
+                className="w-full p-2 rounded-lg bg-[#15151a] hover:bg-[#1c1c24] border border-[#202028] flex items-center justify-between text-left transition-all group"
+              >
+                <div className="flex items-center space-x-2.5">
+                  <KeyRound className="w-3.5 h-3.5 text-indigo-400" />
+                  <div>
+                    <div className="font-medium text-[#ededee] group-hover:text-white text-[11px]">
+                      Change Unique Passcode
+                    </div>
+                    <span className="text-[10px] text-[#71717a]">
+                      Update passcode hash, salt and encrypted database payload.
+                    </span>
+                  </div>
+                </div>
+                <ArrowRight className="w-3 h-3 text-[#52525b] group-hover:text-white" />
+              </button>
+
+              <button
+                onClick={() => {
+                  setIsCommandPaletteOpen(false);
+                  openPasscodeModal('security_info');
+                }}
+                className="w-full p-2 rounded-lg bg-[#15151a] hover:bg-[#1c1c24] border border-[#202028] flex items-center justify-between text-left transition-all group"
+              >
+                <div className="flex items-center space-x-2.5">
+                  <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
+                  <div>
+                    <div className="font-medium text-[#ededee] group-hover:text-white text-[11px]">
+                      Audit Cryptographic Storage & Hashes
+                    </div>
+                    <span className="text-[10px] text-[#71717a]">
+                      Inspect PBKDF2 hash rounds, salt preview, and AES-256 decryption validation.
+                    </span>
+                  </div>
+                </div>
+                <ArrowRight className="w-3 h-3 text-[#52525b] group-hover:text-white" />
+              </button>
+
+              <button
+                onClick={() => {
+                  setIsCommandPaletteOpen(false);
+                  openSecurityGuideModal();
+                }}
+                className="w-full p-2 rounded-lg bg-[#142018] hover:bg-[#1b2d22] border border-emerald-500/30 flex items-center justify-between text-left transition-all group"
+              >
+                <div className="flex items-center space-x-2.5">
+                  <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
+                  <div>
+                    <div className="font-medium text-emerald-400 group-hover:text-emerald-300 text-[11px]">
+                      5-Pillar Security Guide & Interactive Bench
+                    </div>
+                    <span className="text-[10px] text-[#8e8ea0]">
+                      Review OWASP & NIST security requirements, live checklist, and run PBKDF2 benchmarks.
+                    </span>
+                  </div>
+                </div>
+                <ArrowRight className="w-3 h-3 text-emerald-500 group-hover:text-white" />
+              </button>
+            </div>
+          </div>
+
           {/* Project & Workspace Commands */}
           <div>
             <span className="text-[10px] text-[#71717a] uppercase tracking-wider font-semibold px-1.5 block mb-1">
@@ -139,6 +246,98 @@ export const CommandPaletteModal: React.FC = () => {
                     </div>
                     <span className="text-[10px] text-[#71717a]">
                       Download complete ZIP archive, agent scripts and manifest.
+                    </span>
+                  </div>
+                </div>
+                <ArrowRight className="w-3 h-3 text-[#52525b] group-hover:text-white" />
+              </button>
+            </div>
+          </div>
+
+          {/* Tab & File Management Commands */}
+          <div>
+            <span className="text-[10px] text-[#71717a] uppercase tracking-wider font-semibold px-1.5 block mb-1">
+              Tabs & File Management
+            </span>
+            <div className="space-y-1">
+              <button
+                onClick={() => {
+                  setIsCommandPaletteOpen(false);
+                  closeAllTabs();
+                }}
+                className="w-full p-2 rounded-lg bg-[#15151a] hover:bg-[#1c1c24] border border-[#202028] flex items-center justify-between text-left transition-all group"
+              >
+                <div className="flex items-center space-x-2.5">
+                  <XCircle className="w-3.5 h-3.5 text-[#fb7185]" />
+                  <div>
+                    <div className="font-medium text-[#fb7185] group-hover:text-white text-[11px]">
+                      Close All Open Tabs
+                    </div>
+                    <span className="text-[10px] text-[#71717a]">
+                      Removes all open temporary editor files and tabs.
+                    </span>
+                  </div>
+                </div>
+                <ArrowRight className="w-3 h-3 text-[#52525b] group-hover:text-white" />
+              </button>
+
+              <button
+                onClick={() => {
+                  setIsCommandPaletteOpen(false);
+                  if (activeFile) closeOtherTabs(activeFile.path);
+                }}
+                className="w-full p-2 rounded-lg bg-[#15151a] hover:bg-[#1c1c24] border border-[#202028] flex items-center justify-between text-left transition-all group"
+              >
+                <div className="flex items-center space-x-2.5">
+                  <X className="w-3.5 h-3.5 text-[#818cf8]" />
+                  <div>
+                    <div className="font-medium text-[#ededee] group-hover:text-white text-[11px]">
+                      Close Other Tabs
+                    </div>
+                    <span className="text-[10px] text-[#71717a]">
+                      Keeps only the current active file tab.
+                    </span>
+                  </div>
+                </div>
+                <ArrowRight className="w-3 h-3 text-[#52525b] group-hover:text-white" />
+              </button>
+
+              <button
+                onClick={() => {
+                  setIsCommandPaletteOpen(false);
+                  closeSavedTabs();
+                }}
+                className="w-full p-2 rounded-lg bg-[#15151a] hover:bg-[#1c1c24] border border-[#202028] flex items-center justify-between text-left transition-all group"
+              >
+                <div className="flex items-center space-x-2.5">
+                  <RotateCcw className="w-3.5 h-3.5 text-[#a1a1aa]" />
+                  <div>
+                    <div className="font-medium text-[#ededee] group-hover:text-white text-[11px]">
+                      Close Saved / Unmodified Tabs
+                    </div>
+                    <span className="text-[10px] text-[#71717a]">
+                      Closes tabs that do not have unsaved edits.
+                    </span>
+                  </div>
+                </div>
+                <ArrowRight className="w-3 h-3 text-[#52525b] group-hover:text-white" />
+              </button>
+
+              <button
+                onClick={() => {
+                  setIsCommandPaletteOpen(false);
+                  revertAllFiles();
+                }}
+                className="w-full p-2 rounded-lg bg-[#15151a] hover:bg-[#1c1c24] border border-[#202028] flex items-center justify-between text-left transition-all group"
+              >
+                <div className="flex items-center space-x-2.5">
+                  <RotateCcw className="w-3.5 h-3.5 text-[#fbbf24]" />
+                  <div>
+                    <div className="font-medium text-[#fbbf24] group-hover:text-white text-[11px]">
+                      Revert All Workspace Modifications
+                    </div>
+                    <span className="text-[10px] text-[#71717a]">
+                      Discards all uncommitted edits across all files.
                     </span>
                   </div>
                 </div>
@@ -227,35 +426,6 @@ export const CommandPaletteModal: React.FC = () => {
               </button>
             </div>
           </div>
-
-          {/* Account / Sign Out */}
-          {user && (
-            <div>
-              <span className="text-[10px] text-[#71717a] uppercase tracking-wider font-semibold px-1.5 block mb-1">
-                Account
-              </span>
-              <button
-                onClick={async () => {
-                  setIsCommandPaletteOpen(false);
-                  await logout();
-                }}
-                className="w-full p-2 rounded-lg bg-[#15151a] hover:bg-[#f43f5e]/15 border border-[#202028] hover:border-[#f43f5e]/30 flex items-center justify-between text-left transition-all group"
-              >
-                <div className="flex items-center space-x-2.5">
-                  <LogOut className="w-3.5 h-3.5 text-[#fb7185]" />
-                  <div>
-                    <div className="font-medium text-[#fb7185] text-[11px]">
-                      Sign Out ({user.email})
-                    </div>
-                    <span className="text-[10px] text-[#71717a]">
-                      Clears local developer session and credentials.
-                    </span>
-                  </div>
-                </div>
-                <ArrowRight className="w-3 h-3 text-[#fb7185]" />
-              </button>
-            </div>
-          )}
         </div>
 
         {/* Footer */}

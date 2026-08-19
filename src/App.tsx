@@ -15,8 +15,9 @@ import { BottomPanel } from './components/bottom/BottomPanel';
 import { BYOKModal } from './components/modals/BYOKModal';
 import { CommandPaletteModal } from './components/modals/CommandPaletteModal';
 import { PullRequestModal } from './components/modals/PullRequestModal';
-import { AuthModal } from './components/modals/AuthModal';
 import { ProjectModal } from './components/modals/ProjectModal';
+import { PasscodeModal } from './components/modals/PasscodeModal';
+import { SecurityGuideModal } from './components/modals/SecurityGuideModal';
 import { PYTHON_AGENT_FILES } from './data/pythonAgentSource';
 
 function IDEWorkspace() {
@@ -24,8 +25,17 @@ function IDEWorkspace() {
     activeSidebarTab,
     isSidebarOpen,
     viewMode,
-    files
+    files,
+    passcodeConfig,
+    setIsPasscodeModalOpen
   } = useIDE();
+
+  // If IDE session is locked on startup, show passcode authorization modal automatically
+  React.useEffect(() => {
+    if (passcodeConfig && !passcodeConfig.isUnlocked) {
+      setIsPasscodeModalOpen(true);
+    }
+  }, [passcodeConfig, setIsPasscodeModalOpen]);
 
   const handleExportZip = async () => {
     const zip = new JSZip();
@@ -105,10 +115,11 @@ function IDEWorkspace() {
       </div>
 
       {/* Modals */}
+      <PasscodeModal />
+      <SecurityGuideModal />
       <BYOKModal />
       <CommandPaletteModal />
       <PullRequestModal />
-      <AuthModal />
       <ProjectModal />
     </div>
   );

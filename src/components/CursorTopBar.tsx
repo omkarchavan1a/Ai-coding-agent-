@@ -4,7 +4,6 @@ import {
   Sparkles, 
   Key, 
   GitBranch, 
-  Play, 
   Square, 
   SplitSquareVertical, 
   Code, 
@@ -12,30 +11,26 @@ import {
   Sidebar, 
   RefreshCw, 
   Download, 
-  CheckCircle2, 
-  AlertCircle,
-  Command,
   ChevronDown,
-  User,
-  Mail,
-  LogOut,
-  ShieldCheck,
   FolderPlus,
   Upload,
   Layers,
-  FileCode,
-  FileJson
+  Lock,
+  Unlock,
+  ShieldCheck,
+  KeyRound
 } from 'lucide-react';
 
 export const CursorTopBar: React.FC<{ onExportZip?: () => void }> = () => {
   const {
-    user,
-    logout,
-    setIsAuthModalOpen,
     projectName,
     openNewProjectModal,
     openImportProjectModal,
     openExportProjectModal,
+    passcodeConfig,
+    openPasscodeModal,
+    openSecurityGuideModal,
+    lockSession,
     currentBranch,
     byok,
     setIsByokModalOpen,
@@ -53,31 +48,26 @@ export const CursorTopBar: React.FC<{ onExportZip?: () => void }> = () => {
     files
   } = useIDE();
 
-  const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const [isProjectMenuOpen, setIsProjectMenuOpen] = useState(false);
-  const userMenuRef = useRef<HTMLDivElement>(null);
+  const [isPasscodeMenuOpen, setIsPasscodeMenuOpen] = useState(false);
   const projectMenuRef = useRef<HTMLDivElement>(null);
+  const passcodeMenuRef = useRef<HTMLDivElement>(null);
 
   const modifiedCount = files.filter(f => f.isModified).length;
 
   // Close menus when clicking outside
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
-      if (userMenuRef.current && !userMenuRef.current.contains(e.target as Node)) {
-        setIsUserMenuOpen(false);
-      }
       if (projectMenuRef.current && !projectMenuRef.current.contains(e.target as Node)) {
         setIsProjectMenuOpen(false);
+      }
+      if (passcodeMenuRef.current && !passcodeMenuRef.current.contains(e.target as Node)) {
+        setIsPasscodeMenuOpen(false);
       }
     };
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
-
-  const handleSignOutClick = async () => {
-    setIsUserMenuOpen(false);
-    await logout();
-  };
 
   return (
     <header className="h-11 bg-[#0d0d0f] border-b border-[#1e1e24] flex items-center justify-between px-3 text-xs select-none text-[#a1a1aa] z-30">
@@ -218,115 +208,153 @@ export const CursorTopBar: React.FC<{ onExportZip?: () => void }> = () => {
 
         <div className="h-4 w-px bg-[#22222a] mx-0.5" />
 
-        {/* User Account Dropdown Menu with Sign Out */}
-        <div className="relative" ref={userMenuRef}>
-          {user ? (
-            <button
-              onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
-              className="h-7 px-2 rounded-md bg-[#16161b] hover:bg-[#202028] border border-[#252530] hover:border-[#3b3b4a] flex items-center space-x-1.5 transition-all text-[11px] text-[#ededee]"
-            >
-              <img
-                src={user.avatarUrl || `https://api.dicebear.com/7.x/bottts/svg?seed=${user.email}`}
-                alt={user.name}
-                className="w-4 h-4 rounded-full bg-[#0d0d0f]"
-              />
-              <span className="truncate max-w-[90px] font-medium hidden sm:inline">{user.name || user.email.split('@')[0]}</span>
-              {user.isVerified ? (
-                <CheckCircle2 className="w-3 h-3 text-[#34d399] flex-shrink-0" />
-              ) : (
-                <Mail className="w-3 h-3 text-[#fbbf24] flex-shrink-0" />
-              )}
-              <ChevronDown className="w-2.5 h-2.5 text-[#71717a]" />
-            </button>
-          ) : (
-            <button
-              onClick={() => setIsAuthModalOpen(true)}
-              className="h-7 px-2.5 rounded-md bg-[#16161b] hover:bg-[#202028] border border-[#252530] hover:border-[#3b3b4a] flex items-center space-x-1.5 transition-all text-[11px] font-medium text-[#818cf8]"
-            >
-              <Mail className="w-3 h-3 text-[#818cf8]" />
-              <span>Verify Gmail</span>
-            </button>
-          )}
+        {/* Passcode Security & Lock Dropdown */}
+        <div className="relative" ref={passcodeMenuRef}>
+          <button
+            id="btn-topbar-passcode-status"
+            onClick={() => setIsPasscodeMenuOpen(!isPasscodeMenuOpen)}
+            className={`h-7 px-2.5 rounded-md border flex items-center space-x-1.5 transition-all text-[11px] font-medium ${
+              passcodeConfig?.hasPasscode
+                ? 'bg-[#151520] border-[#29293d] text-indigo-300 hover:border-indigo-500/50 hover:bg-[#1a1a2b]'
+                : 'bg-[#16161b] border-[#252530] text-[#a1a1aa] hover:border-[#3b3b4a]'
+            }`}
+            title="Passcode Cryptographic Protection (PBKDF2 SHA-256)"
+          >
+            {passcodeConfig?.isUnlocked ? (
+              <ShieldCheck className="w-3 h-3 text-emerald-400" />
+            ) : (
+              <Lock className="w-3 h-3 text-amber-400" />
+            )}
+            <span className="truncate max-w-[90px]">
+              {passcodeConfig?.hasPasscode ? (passcodeConfig.developerName || 'Passcode') : 'Set Passcode'}
+            </span>
+            <ChevronDown className="w-2.5 h-2.5 text-[#71717a]" />
+          </button>
 
-          {/* User Account Popover */}
-          {isUserMenuOpen && user && (
-            <div className="absolute right-0 top-full mt-1.5 w-64 bg-[#16161b] border border-[#282836] rounded-xl shadow-2xl py-2 z-50 text-xs animate-in fade-in zoom-in-95 duration-100">
-              <div className="px-3.5 py-2 border-b border-[#22222d]">
-                <div className="flex items-center space-x-2.5">
-                  <img
-                    src={user.avatarUrl || `https://api.dicebear.com/7.x/bottts/svg?seed=${user.email}`}
-                    alt={user.name}
-                    className="w-8 h-8 rounded-full bg-[#0d0d0f]"
-                  />
-                  <div className="flex-1 min-w-0">
-                    <div className="font-semibold text-white truncate text-xs">{user.name}</div>
-                    <div className="text-[10px] text-[#71717a] font-mono truncate">{user.email}</div>
+          {isPasscodeMenuOpen && (
+            <div className="absolute right-0 top-full mt-1.5 w-60 bg-[#16161b] border border-[#282836] rounded-xl shadow-2xl py-1.5 z-50 text-xs animate-in fade-in zoom-in-95 duration-100">
+              <div className="px-3 py-1.5 border-b border-[#22222d] flex items-center justify-between">
+                <span className="text-[10px] font-semibold text-[#8e8ea0] uppercase tracking-wider">
+                  Passcode Security
+                </span>
+                <span className="text-[9px] px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-mono">
+                  SHA-256
+                </span>
+              </div>
+
+              {passcodeConfig?.hasPasscode ? (
+                <>
+                  <div className="px-3 py-2 text-[11px] text-[#a1a1aa] border-b border-[#22222d] bg-[#121217]">
+                    <div className="text-white font-medium truncate">{passcodeConfig.developerName}</div>
+                    <div className="text-[10px] text-[#717182] font-mono truncate mt-0.5">
+                      Hash: {passcodeConfig.hashPreview || 'PBKDF2 SHA-256'}
+                    </div>
                   </div>
-                </div>
 
-                <div className="mt-2 flex items-center justify-between pt-1 text-[10px]">
-                  <span className="text-[#71717a]">Status:</span>
-                  <span className={`px-1.5 py-0.5 rounded font-mono font-medium ${
-                    user.isVerified ? 'bg-[#10b981]/15 text-[#34d399]' : 'bg-[#f59e0b]/15 text-[#fbbf24]'
-                  }`}>
-                    {user.isVerified ? 'VERIFIED' : 'UNVERIFIED'}
-                  </span>
-                </div>
-              </div>
+                  <button
+                    id="menu-item-lock-ide"
+                    onClick={() => {
+                      setIsPasscodeMenuOpen(false);
+                      lockSession();
+                    }}
+                    className="w-full px-3 py-2 text-left text-amber-300 hover:bg-[#22222e] flex items-center space-x-2 transition-colors cursor-pointer"
+                  >
+                    <Lock className="w-3.5 h-3.5" />
+                    <span>Lock IDE Session</span>
+                  </button>
 
-              <div className="py-1">
-                <button
-                  onClick={() => {
-                    setIsUserMenuOpen(false);
-                    setIsAuthModalOpen(true);
-                  }}
-                  className="w-full px-3.5 py-2 text-left text-[#ededee] hover:bg-[#22222e] hover:text-white flex items-center space-x-2 transition-colors"
-                >
-                  <ShieldCheck className="w-3.5 h-3.5 text-[#34d399]" />
-                  <span>Developer Account Details</span>
-                </button>
+                  <button
+                    id="menu-item-change-passcode"
+                    onClick={() => {
+                      setIsPasscodeMenuOpen(false);
+                      openPasscodeModal('change');
+                    }}
+                    className="w-full px-3 py-2 text-left text-[#ededee] hover:bg-[#22222e] flex items-center space-x-2 transition-colors cursor-pointer"
+                  >
+                    <KeyRound className="w-3.5 h-3.5 text-indigo-400" />
+                    <span>Change Passcode...</span>
+                  </button>
 
-                <button
-                  onClick={() => {
-                    setIsUserMenuOpen(false);
-                    setIsByokModalOpen(true);
-                  }}
-                  className="w-full px-3.5 py-2 text-left text-[#ededee] hover:bg-[#22222e] hover:text-white flex items-center space-x-2 transition-colors"
-                >
-                  <Key className="w-3.5 h-3.5 text-[#818cf8]" />
-                  <span>BYOK & Model Settings</span>
-                </button>
-              </div>
+                  <button
+                    id="menu-item-crypto-info"
+                    onClick={() => {
+                      setIsPasscodeMenuOpen(false);
+                      openPasscodeModal('security_info');
+                    }}
+                    className="w-full px-3 py-2 text-left text-[#ededee] hover:bg-[#22222e] flex items-center space-x-2 transition-colors cursor-pointer"
+                  >
+                    <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
+                    <span>View Cryptographic Audit</span>
+                  </button>
 
-              <div className="h-px bg-[#22222d] my-1" />
+                  <button
+                    id="menu-item-security-guide"
+                    onClick={() => {
+                      setIsPasscodeMenuOpen(false);
+                      openSecurityGuideModal();
+                    }}
+                    className="w-full px-3 py-2 text-left text-emerald-400 hover:bg-[#22222e] flex items-center space-x-2 transition-colors cursor-pointer border-t border-[#22222e]"
+                  >
+                    <ShieldCheck className="w-3.5 h-3.5" />
+                    <span>5-Pillar Security Guide & Test Bench</span>
+                  </button>
+                </>
+              ) : (
+                <>
+                  <button
+                    id="menu-item-create-passcode"
+                    onClick={() => {
+                      setIsPasscodeMenuOpen(false);
+                      openPasscodeModal('create');
+                    }}
+                    className="w-full px-3 py-2 text-left text-indigo-400 hover:bg-[#22222e] flex items-center space-x-2 transition-colors cursor-pointer"
+                  >
+                    <KeyRound className="w-3.5 h-3.5" />
+                    <span>Create Unique Passcode...</span>
+                  </button>
 
-              {/* Sign Out Button */}
-              <button
-                onClick={handleSignOutClick}
-                className="w-full px-3.5 py-2 text-left text-[#fb7185] hover:bg-[#f43f5e]/15 flex items-center space-x-2 transition-colors font-medium"
-              >
-                <LogOut className="w-3.5 h-3.5 text-[#fb7185]" />
-                <span>Sign Out</span>
-              </button>
+                  <button
+                    id="menu-item-security-guide-empty"
+                    onClick={() => {
+                      setIsPasscodeMenuOpen(false);
+                      openSecurityGuideModal();
+                    }}
+                    className="w-full px-3 py-2 text-left text-emerald-400 hover:bg-[#22222e] flex items-center space-x-2 transition-colors cursor-pointer border-t border-[#22222e]"
+                  >
+                    <ShieldCheck className="w-3.5 h-3.5" />
+                    <span>5-Pillar Security Guide & Test Bench</span>
+                  </button>
+                </>
+              )}
             </div>
           )}
         </div>
 
-        {/* BYOK (Bring Your Own Key) Pill */}
+        {/* Passcode Security & Gate Status Pill */}
         <button
-          onClick={() => setIsByokModalOpen(true)}
+          onClick={() => {
+            if (!passcodeConfig?.isUnlocked) {
+              openPasscodeModal('authorize');
+            } else {
+              openPasscodeModal('security_info');
+            }
+          }}
           className={`h-7 px-2.5 rounded-md border flex items-center space-x-1.5 transition-all text-[11px] font-medium ${
-            byok.isKeyVerified || byok.geminiApiKey || byok.openaiApiKey
+            passcodeConfig?.isUnlocked
               ? 'bg-[#121b16] border-[#1b3d2b] text-[#34d399] hover:bg-[#16271e]'
-              : 'bg-[#16161b] border-[#252530] text-[#a1a1aa] hover:border-[#3b3b4a] hover:text-[#ededee]'
+              : 'bg-[#221815] border-[#4a2e1d] text-amber-300 hover:bg-[#2d1f19] animate-pulse'
           }`}
-          title="Bring Your Own Key (Gemini, OpenAI, Claude, Custom)"
+          title={passcodeConfig?.isUnlocked ? "Passcode Authorized - AI Agents Unlocked" : "Passcode Locked - Click to Authorize & Start AI Agents"}
         >
-          <Key className="w-3 h-3 text-[#818cf8]" />
-          <span className="truncate max-w-[100px]">
-            {byok.isKeyVerified ? `${byok.selectedModel}` : 'API Key'}
+          {passcodeConfig?.isUnlocked ? (
+            <ShieldCheck className="w-3 h-3 text-emerald-400" />
+          ) : (
+            <Lock className="w-3 h-3 text-amber-400" />
+          )}
+          <span className="truncate max-w-[120px]">
+            {passcodeConfig?.isUnlocked ? 'Passcode Verified' : 'Passcode Required'}
           </span>
-          <span className={`w-1.5 h-1.5 rounded-full ${byok.isKeyVerified ? 'bg-[#10b981]' : 'bg-[#f59e0b]'}`} />
+          <span className={`w-1.5 h-1.5 rounded-full ${passcodeConfig?.isUnlocked ? 'bg-[#10b981]' : 'bg-amber-400'}`} />
         </button>
 
         {/* 4-Agent Orchestration Run Button */}
