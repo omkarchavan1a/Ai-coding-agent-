@@ -23,6 +23,7 @@ import {
 } from 'lucide-react';
 import { useIDE } from '../../context/IDEContext';
 import { SecurityAuditData } from '../../types';
+import { safeFetchJson } from '../../utils/safeFetch';
 
 export const SecurityGuideModal: React.FC = () => {
   const { isSecurityGuideModalOpen, setIsSecurityGuideModalOpen, openPasscodeModal } = useIDE();
@@ -47,9 +48,10 @@ export const SecurityGuideModal: React.FC = () => {
   const fetchAudit = async () => {
     setIsLoadingAudit(true);
     try {
-      const res = await fetch('/api/security/audit');
-      const data = await res.json();
-      setAuditData(data);
+      const res = await safeFetchJson<SecurityAuditData>('/api/security/audit');
+      if (res.data && typeof res.data === 'object') {
+        setAuditData(res.data);
+      }
     } catch (e) {
       console.warn("Failed to fetch security audit:", e);
     } finally {

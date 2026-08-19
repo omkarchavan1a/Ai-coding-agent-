@@ -1049,6 +1049,21 @@ app.post("/api/notes/reset", (req, res) => {
   res.json({ message: "Demo notes reset to initial state", count: notesDatabase.length });
 });
 
+// Explicit API 404 handler to ensure /api/* never falls through to Vite HTML
+app.all("/api/*", (req, res) => {
+  res.status(404).json({ error: `API route ${req.method} ${req.path} not found`, success: false });
+});
+
+// Global API error middleware returning strictly JSON
+app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
+  console.error("API Express Error:", err);
+  if (res.headersSent) return next(err);
+  res.status(500).json({ 
+    error: err?.message || "Internal Server Error",
+    success: false 
+  });
+});
+
 // ==================== VITE MIDDLEWARE SETUP ====================
 
 async function startServer() {

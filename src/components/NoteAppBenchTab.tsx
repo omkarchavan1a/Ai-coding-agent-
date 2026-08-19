@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Note } from '../types';
 import { Search, Tag, Folder, Plus, Trash2, RefreshCw, CheckCircle2, Sparkles } from 'lucide-react';
+import { safeFetchJson } from '../utils/safeFetch';
 
 export const NoteAppBenchTab: React.FC = () => {
   const [notes, setNotes] = useState<Note[]>([]);
@@ -26,18 +27,16 @@ export const NoteAppBenchTab: React.FC = () => {
       if (selectedCategory) params.append('category', selectedCategory);
       if (selectedTag) params.append('tag', selectedTag);
 
-      const res = await fetch(`/api/notes?${params.toString()}`);
-      if (res.ok) {
-        const data = await res.json();
-        setNotes(data);
+      const res = await safeFetchJson<Note[]>(`/api/notes?${params.toString()}`, undefined, []);
+      if (res.ok && Array.isArray(res.data)) {
+        setNotes(res.data);
       }
 
       // Fetch metadata
-      const metaRes = await fetch('/api/notes/meta');
-      if (metaRes.ok) {
-        const meta = await metaRes.json();
-        setCategories(meta.categories || []);
-        setTags(meta.tags || []);
+      const metaRes = await safeFetchJson<{ categories?: string[]; tags?: string[] }>('/api/notes/meta', undefined, {});
+      if (metaRes.ok && metaRes.data) {
+        setCategories(metaRes.data.categories || []);
+        setTags(metaRes.data.tags || []);
       }
     } catch (err) {
       console.error('Error fetching notes:', err);
@@ -55,7 +54,7 @@ export const NoteAppBenchTab: React.FC = () => {
     if (!newContent.trim()) return;
 
     try {
-      const res = await fetch('/api/notes', {
+      const res = await safeFetchJson('/api/notes', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -79,7 +78,7 @@ export const NoteAppBenchTab: React.FC = () => {
 
   const handleDeleteNote = async (id: string) => {
     try {
-      const res = await fetch(`/api/notes/${id}`, { method: 'DELETE' });
+      const res = await safeFetchJson(`/api/notes/${id}`, { method: 'DELETE' });
       if (res.ok) {
         fetchNotes();
       }
@@ -90,7 +89,7 @@ export const NoteAppBenchTab: React.FC = () => {
 
   const handleResetDemo = async () => {
     try {
-      await fetch('/api/notes/reset', { method: 'POST' });
+      await safeFetchJson('/api/notes/reset', { method: 'POST' });
       setSearchQuery('');
       setSelectedCategory('');
       setSelectedTag('');

@@ -5,6 +5,7 @@ import { INITIAL_TARGET_REPO_FILES, MODIFIED_TARGET_REPO_FILES } from '../data/t
 import { INITIAL_AGENTS, INITIAL_BYOK_SETTINGS, INITIAL_BUGS, INITIAL_REVIEWS, INITIAL_SCORECARD, INITIAL_COMMITS, INITIAL_BRANCHES, INITIAL_PULL_REQUESTS } from '../data/agentData';
 import { PROJECT_TEMPLATES } from '../data/projectTemplates';
 import { PYTHON_AGENT_FILES } from '../data/pythonAgentSource';
+import { safeFetchJson } from '../utils/safeFetch';
 
 interface IDEContextType {
   // Passcode Security & Cryptographic Authorization
@@ -511,9 +512,10 @@ export const IDEProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const fetchPasscodeStatus = useCallback(async () => {
     try {
-      const res = await fetch('/api/passcode/status');
-      const data = await res.json();
-      setPasscodeConfig(data);
+      const res = await safeFetchJson<PasscodeConfig>('/api/passcode/status');
+      if (res.data && typeof res.data === 'object') {
+        setPasscodeConfig(res.data);
+      }
     } catch (e) {
       console.warn("Failed to fetch passcode status:", e);
     }
@@ -530,12 +532,12 @@ export const IDEProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const authorizePasscode = async (passcode: string) => {
     try {
-      const res = await fetch('/api/passcode/authorize', {
+      const res = await safeFetchJson('/api/passcode/authorize', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ passcode })
       });
-      const data = await res.json();
+      const data = res.data;
       if (data.success) {
         await fetchPasscodeStatus();
         setIsPasscodeModalOpen(false);
@@ -555,12 +557,12 @@ export const IDEProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const createPasscode = async (passcode: string, hint?: string, developerName?: string) => {
     try {
-      const res = await fetch('/api/passcode/create', {
+      const res = await safeFetchJson('/api/passcode/create', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ passcode, hint, developerName })
       });
-      const data = await res.json();
+      const data = res.data;
       if (data.success) {
         await fetchPasscodeStatus();
         setIsPasscodeModalOpen(false);
@@ -574,12 +576,12 @@ export const IDEProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const changePasscode = async (currentPasscode: string, newPasscode: string, newHint?: string, developerName?: string) => {
     try {
-      const res = await fetch('/api/passcode/change', {
+      const res = await safeFetchJson('/api/passcode/change', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ currentPasscode, newPasscode, newHint, developerName })
       });
-      const data = await res.json();
+      const data = res.data;
       if (data.success) {
         await fetchPasscodeStatus();
         setIsPasscodeModalOpen(false);
@@ -593,7 +595,7 @@ export const IDEProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const lockSession = async () => {
     try {
-      await fetch('/api/passcode/lock', { method: 'POST' });
+      await safeFetchJson('/api/passcode/lock', { method: 'POST' });
       await fetchPasscodeStatus();
       openPasscodeModal('authorize');
     } catch (e) {
@@ -603,12 +605,12 @@ export const IDEProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const removePasscode = async (currentPasscode: string) => {
     try {
-      const res = await fetch('/api/passcode/remove', {
+      const res = await safeFetchJson('/api/passcode/remove', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ currentPasscode })
       });
-      const data = await res.json();
+      const data = res.data;
       if (data.success) {
         await fetchPasscodeStatus();
         setIsPasscodeModalOpen(false);
@@ -634,7 +636,7 @@ export const IDEProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const testByokConnection = async () => {
     try {
       const apiKeyToTest = byok.provider === 'gemini' ? byok.geminiApiKey : (byok.provider === 'openai' ? byok.openaiApiKey : byok.anthropicApiKey);
-      const res = await fetch('/api/byok/test-key', {
+      const res = await safeFetchJson('/api/byok/test-key', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -643,7 +645,7 @@ export const IDEProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           model: byok.selectedModel
         })
       });
-      const data = await res.json();
+      const data = res.data;
       if (res.ok && data.success) {
         updateByok({
           isKeyVerified: true,
