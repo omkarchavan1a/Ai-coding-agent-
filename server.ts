@@ -28,6 +28,17 @@ import {
 const app = express();
 const PORT = 3000;
 
+// Enable CORS and handle preflight OPTIONS globally
+app.use((req, res, next) => {
+  res.header("Access-Control-Allow-Origin", "*");
+  res.header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, PATCH, OPTIONS, HEAD");
+  res.header("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept, Authorization");
+  if (req.method === "OPTIONS") {
+    return res.sendStatus(204);
+  }
+  next();
+});
+
 app.use(express.json());
 
 // Master Server Secret for AES-256-GCM Payload Encryption / Decryption
@@ -924,8 +935,8 @@ Briefly summarize your approach for repository exploration, file identification,
 
 // ==================== LIVE NOTE APP REST API (POWERED BY SQLITE) ====================
 
-// GET /notes (supports ?q=, ?search=, ?category=, ?tag= via SQLite)
-app.get("/api/notes", (req, res) => {
+// GET /notes & /api/notes (supports ?q=, ?search=, ?category=, ?tag= via SQLite)
+app.get(["/api/notes", "/notes"], (req, res) => {
   const { query, search, q, category, tag } = req.query as Record<string, string>;
   const searchTerm = (query || search || q || "").trim();
 
@@ -938,17 +949,41 @@ app.get("/api/notes", (req, res) => {
   res.json(notes);
 });
 
-// GET /notes/meta (Categories & Tags metadata from SQLite)
-app.get("/api/notes/meta", (req, res) => {
+// GET /notes/search & /api/notes/search (Explicit search endpoint)
+app.get(["/api/notes/search", "/notes/search"], (req, res) => {
+  const { query, search, q, category, tag } = req.query as Record<string, string>;
+  const searchTerm = (query || search || q || "").trim();
+
+  const notes = getAllNotes({
+    search: searchTerm || undefined,
+    category: category || undefined,
+    tag: tag || undefined
+  });
+
+  res.json(notes);
+});
+
+// GET /notes/meta & /api/notes/meta (Categories & Tags metadata from SQLite)
+app.get(["/api/notes/meta", "/notes/meta"], (req, res) => {
   const allNotes = getAllNotes();
   const categories = Array.from(new Set(allNotes.map(n => n.category).filter(Boolean)));
   const tags = Array.from(new Set(allNotes.flatMap(n => n.tags || []).filter(Boolean)));
   res.json({ categories, tags, database: "SQLite 3" });
 });
 
-// POST /notes (Inserts note into SQLite)
-app.post("/api/notes", (req, res) => {
-  const { title, content, category, tags } = req.body;
+// GET /notes/:noteId & /api/notes/:noteId (Fetch note by ID)
+app.get(["/api/notes/:noteId", "/notes/:noteId"], (req, res) => {
+  const { noteId } = req.params;
+  const note = getNoteById(noteId);
+  if (!note) {
+    return res.status(404).json({ message: "Note not found with id " + noteId });
+  }
+  res.json(note);
+});
+
+// POST /notes & /api/notes (Inserts note into SQLite)
+app.post(["/api/notes", "/notes"], (req, res) => {
+  const { title, content, category, tags } = req.body || {};
 
   if (!content) {
     return res.status(400).json({ message: "Note content can not be empty" });
@@ -971,10 +1006,10 @@ app.post("/api/notes", (req, res) => {
   res.status(201).json(newNote);
 });
 
-// PUT /notes/:noteId (Updates note in SQLite)
-app.put("/api/notes/:noteId", (req, res) => {
+// PUT /notes/:noteId & /api/notes/:noteId (Updates note in SQLite)
+app.put(["/api/notes/:noteId", "/notes/:noteId"], (req, res) => {
   const { noteId } = req.params;
-  const { title, content, category, tags } = req.body;
+  const { title, content, category, tags } = req.body || {};
 
   if (!content) {
     return res.status(400).json({ message: "Note content can not be empty" });
@@ -1003,8 +1038,8 @@ app.put("/api/notes/:noteId", (req, res) => {
   res.json(updated);
 });
 
-// DELETE /notes/:noteId (Deletes note from SQLite)
-app.delete("/api/notes/:noteId", (req, res) => {
+// DELETE /notes/:noteId & /api/notes/:noteId (Deletes note from SQLite)
+app.delete(["/api/notes/:noteId", "/notes/:noteId"], (req, res) => {
   const { noteId } = req.params;
   const success = deleteNote(noteId);
 
@@ -1016,7 +1051,7 @@ app.delete("/api/notes/:noteId", (req, res) => {
 });
 
 // RESET NOTES DEMO DATA IN SQLITE
-app.post("/api/notes/reset", (req, res) => {
+app.post(["/api/notes/reset", "/notes/reset"], (req, res) => {
   resetNotesDatabase();
   const freshNotes = getAllNotes();
   res.json({ message: "SQLite database notes reset to initial state", count: freshNotes.length });
