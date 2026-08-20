@@ -12,8 +12,40 @@ import {
   clientAuthorizePasscode,
   clientChangePasscode,
   clientRemovePasscode,
-  setClientSessionUnlocked
+  setClientSessionUnlocked,
+  isClientSessionUnlocked
 } from '../utils/clientSecurity';
+import {
+  loadStoredFiles,
+  loadStoredDiffBaseFiles,
+  loadStoredProjectName,
+  loadStoredActiveFilePath,
+  loadStoredOpenTabs,
+  loadStoredViewMode,
+  loadStoredUIState,
+  loadStoredAgents,
+  loadStoredOrchestrator,
+  loadStoredBugs,
+  loadStoredReviews,
+  loadStoredScorecard,
+  loadStoredGitState,
+  loadStoredBYOK,
+  persistFiles,
+  persistDiffBaseFiles,
+  persistProjectName,
+  persistActiveFilePath,
+  persistOpenTabs,
+  persistViewMode,
+  persistUIState,
+  persistAgents,
+  persistOrchestrator,
+  persistBugs,
+  persistReviews,
+  persistScorecard,
+  persistGitState,
+  persistBYOK,
+  clearWorkspaceStorage
+} from '../utils/workspaceStorage';
 
 interface IDEContextType {
   // Passcode Security & Cryptographic Authorization
@@ -142,62 +174,118 @@ const IDEContext = createContext<IDEContextType | undefined>(undefined);
 
 export const IDEProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   // Load saved BYOK settings from localStorage if available
-  const [byok, setByok] = useState<BYOKSettings>(() => {
-    try {
-      const saved = localStorage.getItem('byok_settings');
-      if (saved) return { ...INITIAL_BYOK_SETTINGS, ...JSON.parse(saved) };
-    } catch (e) {}
-    return INITIAL_BYOK_SETTINGS;
-  });
+  const [byok, setByok] = useState<BYOKSettings>(loadStoredBYOK);
 
-  const [files, setFiles] = useState<RepoFile[]>(INITIAL_TARGET_REPO_FILES);
-  const [diffBaseFiles] = useState<RepoFile[]>(INITIAL_TARGET_REPO_FILES);
-  const [activeFilePath, setActiveFilePath] = useState<string>('app/controllers/note.controller.js');
-  const [openTabs, setOpenTabs] = useState<string[]>([
-    'app/controllers/note.controller.js',
-    'app/models/note.model.js',
-    'app/routes/note.routes.js',
-    'test/note.test.js'
-  ]);
-  const [viewMode, setViewMode] = useState<'editor' | 'diff'>('editor');
+  const [files, setFiles] = useState<RepoFile[]>(loadStoredFiles);
+  const [diffBaseFiles, setDiffBaseFiles] = useState<RepoFile[]>(loadStoredDiffBaseFiles);
+  const [activeFilePath, setActiveFilePath] = useState<string>(() => loadStoredActiveFilePath(loadStoredFiles()));
+  const [openTabs, setOpenTabs] = useState<string[]>(() => loadStoredOpenTabs(loadStoredFiles()));
+  const [viewMode, setViewMode] = useState<'editor' | 'diff'>(loadStoredViewMode);
   
-  const [activeSidebarTab, setActiveSidebarTab] = useState<'explorer' | 'agents' | 'review' | 'bugs' | 'git' | 'settings'>('agents');
-  const [isSidebarOpen, setIsSidebarOpen] = useState<boolean>(true);
-  const [isBottomPanelOpen, setIsBottomPanelOpen] = useState<boolean>(true);
-  const [activeBottomTab, setActiveBottomTab] = useState<'console' | 'tests' | 'review' | 'bugs' | 'git' | 'sandbox'>('console');
+  const initialUI = loadStoredUIState();
+  const [activeSidebarTab, setActiveSidebarTab] = useState<'explorer' | 'agents' | 'review' | 'bugs' | 'git' | 'settings'>(initialUI.activeSidebarTab);
+  const [isSidebarOpen, setIsSidebarOpen] = useState<boolean>(initialUI.isSidebarOpen);
+  const [isBottomPanelOpen, setIsBottomPanelOpen] = useState<boolean>(initialUI.isBottomPanelOpen);
+  const [activeBottomTab, setActiveBottomTab] = useState<'console' | 'tests' | 'review' | 'bugs' | 'git' | 'sandbox'>(initialUI.activeBottomTab);
   
-  const [agents, setAgents] = useState<AgentInfo[]>(INITIAL_AGENTS);
+  const [agents, setAgents] = useState<AgentInfo[]>(loadStoredAgents);
   const [isAnyAgentRunning, setIsAnyAgentRunning] = useState<boolean>(false);
-  const [orchestratorProgress, setOrchestratorProgress] = useState<number>(0);
-  const [orchestratorThought, setOrchestratorThought] = useState<string>('Ready to orchestrate 4 autonomous agents across your codebase.');
+  const initialOrch = loadStoredOrchestrator();
+  const [orchestratorProgress, setOrchestratorProgress] = useState<number>(initialOrch.progress);
+  const [orchestratorThought, setOrchestratorThought] = useState<string>(initialOrch.thought);
   
-  const [bugs, setBugs] = useState<CodeBug[]>(INITIAL_BUGS);
-  const [reviews, setReviews] = useState<ReviewAnnotation[]>(INITIAL_REVIEWS);
-  const [scorecard, setScorecard] = useState<CodeReviewScorecard>(INITIAL_SCORECARD);
+  const [bugs, setBugs] = useState<CodeBug[]>(loadStoredBugs);
+  const [reviews, setReviews] = useState<ReviewAnnotation[]>(loadStoredReviews);
+  const [scorecard, setScorecard] = useState<CodeReviewScorecard>(loadStoredScorecard);
   
-  const [gitCommits, setGitCommits] = useState<GitCommit[]>(INITIAL_COMMITS);
-  const [gitBranches, setGitBranches] = useState<GitBranch[]>(INITIAL_BRANCHES);
-  const [currentBranch, setCurrentBranch] = useState<string>('feature/notes-organization-search');
-  const [pullRequests, setPullRequests] = useState<PullRequest[]>(INITIAL_PULL_REQUESTS);
-  const [stagedFiles, setStagedFiles] = useState<string[]>([
-    'app/controllers/note.controller.js',
-    'app/models/note.model.js'
-  ]);
-  const [unstagedFiles, setUnstagedFiles] = useState<string[]>([
-    'app/routes/note.routes.js',
-    'test/note.test.js',
-    'package.json'
-  ]);
+  const initialGit = loadStoredGitState();
+  const [gitCommits, setGitCommits] = useState<GitCommit[]>(initialGit.gitCommits);
+  const [gitBranches, setGitBranches] = useState<GitBranch[]>(initialGit.gitBranches);
+  const [currentBranch, setCurrentBranch] = useState<string>(initialGit.currentBranch);
+  const [pullRequests, setPullRequests] = useState<PullRequest[]>(initialGit.pullRequests);
+  const [stagedFiles, setStagedFiles] = useState<string[]>(initialGit.stagedFiles);
+  const [unstagedFiles, setUnstagedFiles] = useState<string[]>(initialGit.unstagedFiles);
 
   const [isByokModalOpen, setIsByokModalOpen] = useState<boolean>(false);
   const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState<boolean>(false);
   const [isPRModalOpen, setIsPRModalOpen] = useState<boolean>(false);
-  const [activePR, setActivePR] = useState<PullRequest | null>(INITIAL_PULL_REQUESTS[0] || null);
+  const [activePR, setActivePR] = useState<PullRequest | null>(() => {
+    return (initialGit.pullRequests && initialGit.pullRequests.length > 0) ? initialGit.pullRequests[0] : (INITIAL_PULL_REQUESTS[0] || null);
+  });
 
   // Project Management State
-  const [projectName, setProjectName] = useState<string>('node-easy-notes-app');
+  const [projectName, setProjectName] = useState<string>(loadStoredProjectName);
   const [isProjectModalOpen, setIsProjectModalOpen] = useState<boolean>(false);
   const [projectModalTab, setProjectModalTab] = useState<'new' | 'import' | 'export'>('new');
+
+  // ==================== WORKSPACE AUTO-PERSISTENCE EFFECTS ====================
+  useEffect(() => {
+    persistFiles(files);
+  }, [files]);
+
+  useEffect(() => {
+    persistDiffBaseFiles(diffBaseFiles);
+  }, [diffBaseFiles]);
+
+  useEffect(() => {
+    persistProjectName(projectName);
+  }, [projectName]);
+
+  useEffect(() => {
+    persistActiveFilePath(activeFilePath);
+  }, [activeFilePath]);
+
+  useEffect(() => {
+    persistOpenTabs(openTabs);
+  }, [openTabs]);
+
+  useEffect(() => {
+    persistViewMode(viewMode);
+  }, [viewMode]);
+
+  useEffect(() => {
+    persistUIState({
+      activeSidebarTab,
+      isSidebarOpen,
+      isBottomPanelOpen,
+      activeBottomTab
+    });
+  }, [activeSidebarTab, isSidebarOpen, isBottomPanelOpen, activeBottomTab]);
+
+  useEffect(() => {
+    persistAgents(agents);
+  }, [agents]);
+
+  useEffect(() => {
+    persistOrchestrator(orchestratorProgress, orchestratorThought);
+  }, [orchestratorProgress, orchestratorThought]);
+
+  useEffect(() => {
+    persistBugs(bugs);
+  }, [bugs]);
+
+  useEffect(() => {
+    persistReviews(reviews);
+  }, [reviews]);
+
+  useEffect(() => {
+    persistScorecard(scorecard);
+  }, [scorecard]);
+
+  useEffect(() => {
+    persistGitState({
+      gitCommits,
+      gitBranches,
+      currentBranch,
+      pullRequests,
+      stagedFiles,
+      unstagedFiles
+    });
+  }, [gitCommits, gitBranches, currentBranch, pullRequests, stagedFiles, unstagedFiles]);
+
+  useEffect(() => {
+    persistBYOK(byok);
+  }, [byok]);
 
   const openNewProjectModal = () => {
     setProjectModalTab('new');
@@ -519,10 +607,14 @@ export const IDEProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const fetchPasscodeStatus = useCallback(async () => {
+    const isLocallyUnlocked = isClientSessionUnlocked();
     try {
       const res = await safeFetchJson<PasscodeConfig>('/api/passcode/status');
       if (res.ok && res.data && typeof res.data === 'object' && ('hasPasscode' in res.data)) {
-        setPasscodeConfig(res.data);
+        setPasscodeConfig({
+          ...res.data,
+          isUnlocked: isLocallyUnlocked ? true : (res.data.isUnlocked ?? false)
+        });
         return;
       }
     } catch (e) {
@@ -550,6 +642,7 @@ export const IDEProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       });
       const data = res.data;
       if (res.ok && data && data.success) {
+        setClientSessionUnlocked(true);
         await fetchPasscodeStatus();
         setIsPasscodeModalOpen(false);
         return { success: true, message: data.message || "Passcode authorized successfully!" };
@@ -570,6 +663,7 @@ export const IDEProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     // Client-side Web Crypto Fallback
     const clientRes = await clientAuthorizePasscode(passcode);
     if (clientRes.success) {
+      setClientSessionUnlocked(true);
       setPasscodeConfig(getClientPasscodeConfig());
       setIsPasscodeModalOpen(false);
     }
@@ -585,6 +679,7 @@ export const IDEProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       });
       const data = res.data;
       if (res.ok && data && data.success) {
+        setClientSessionUnlocked(true);
         await fetchPasscodeStatus();
         setIsPasscodeModalOpen(false);
         return { success: true, message: data.message || "Passcode created!" };
@@ -599,6 +694,7 @@ export const IDEProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     // Client-side Web Crypto Fallback
     const clientRes = await clientCreatePasscode(passcode, hint, developerName);
     if (clientRes.success) {
+      setClientSessionUnlocked(true);
       setPasscodeConfig(getClientPasscodeConfig());
     }
     return clientRes;
@@ -791,7 +887,9 @@ export const IDEProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   };
 
-  const activeFile = files.find(f => f.path === activeFilePath) || files[0];
+  const activeFile = openTabs.includes(activeFilePath)
+    ? files.find(f => f.path === activeFilePath)
+    : (openTabs.length > 0 ? files.find(f => f.path === openTabs[0]) : undefined);
 
   const openFileInTab = (path: string) => {
     if (!openTabs.includes(path)) {
@@ -1382,15 +1480,25 @@ export const IDEProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const resetCodebase = () => {
-    setFiles(INITIAL_TARGET_REPO_FILES);
-    setBugs(INITIAL_BUGS);
-    setReviews(INITIAL_REVIEWS);
-    setScorecard(INITIAL_SCORECARD);
-    setGitCommits(INITIAL_COMMITS);
-    setAgents(INITIAL_AGENTS);
-    setStagedFiles([]);
-    setUnstagedFiles(['app/controllers/note.controller.js']);
+    clearWorkspaceStorage();
+    setFiles([]);
+    setDiffBaseFiles([]);
+    setProjectName('my-workspace');
+    setActiveFilePath('');
+    setOpenTabs([]);
     setViewMode('editor');
+    setBugs([]);
+    setReviews([]);
+    setScorecard(INITIAL_SCORECARD);
+    setGitCommits([]);
+    setGitBranches([{ name: 'main', isCurrent: true, lastCommitHash: 'init' }]);
+    setCurrentBranch('main');
+    setPullRequests([]);
+    setAgents(INITIAL_AGENTS.map(a => ({ ...a, status: 'idle', progress: 0, logs: [], tokenUsage: { inputTokens: 0, outputTokens: 0, totalTokens: 0 } })));
+    setOrchestratorProgress(0);
+    setOrchestratorThought('Ready to orchestrate 4 autonomous agents across your codebase.');
+    setStagedFiles([]);
+    setUnstagedFiles([]);
   };
 
   // Keyboard shortcut for Command Palette (Cmd+K / Ctrl+K)

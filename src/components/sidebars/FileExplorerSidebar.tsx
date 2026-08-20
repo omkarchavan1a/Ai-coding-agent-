@@ -18,7 +18,8 @@ import {
   XCircle,
   Copy,
   Edit3,
-  MoreVertical
+  MoreVertical,
+  Sparkles
 } from 'lucide-react';
 import { FileContextMenu, ContextMenuPosition } from '../common/FileContextMenu';
 import { FileOperationModal, FileModalType } from '../modals/FileOperationModal';
@@ -225,7 +226,40 @@ export const FileExplorerSidebar: React.FC = () => {
 
       {/* File Tree List */}
       <div className="flex-1 overflow-y-auto py-1 font-mono text-xs">
-        {filteredFiles.map((file) => {
+        {files.length === 0 ? (
+          <div className="p-4 flex flex-col items-center justify-center text-center space-y-3 font-sans">
+            <div className="w-9 h-9 rounded-xl bg-[#181822] border border-[#222230] flex items-center justify-center text-[#818cf8]">
+              <FolderPlus className="w-4 h-4" />
+            </div>
+            <div className="space-y-1">
+              <p className="text-[#ededee] text-[11px] font-medium">Workspace is empty</p>
+              <p className="text-[#71717a] text-[10px] leading-relaxed">
+                Create a new file, load a project template, or import a ZIP repo.
+              </p>
+            </div>
+            <div className="flex flex-col space-y-1.5 w-full pt-1">
+              <button
+                onClick={() => setModalState({ isOpen: true, type: 'new-file', targetPath: '', isFolder: false })}
+                className="w-full py-1 px-2 rounded bg-[#1e1e28] hover:bg-[#282836] border border-[#2e2e40] text-[#ededee] text-[10px] font-medium flex items-center justify-center space-x-1.5 transition-colors"
+              >
+                <Plus className="w-3 h-3 text-[#34d399]" />
+                <span>New File</span>
+              </button>
+              <button
+                onClick={openNewProjectModal}
+                className="w-full py-1 px-2 rounded bg-[#161622] hover:bg-[#222232] border border-[#26263a] text-[#a5b4fc] text-[10px] font-medium flex items-center justify-center space-x-1.5 transition-colors"
+              >
+                <Sparkles className="w-3 h-3 text-[#818cf8]" />
+                <span>Project Starters</span>
+              </button>
+            </div>
+          </div>
+        ) : filteredFiles.length === 0 ? (
+          <div className="p-4 text-center text-[#71717a] text-[11px] font-sans">
+            No files match "{searchQuery}"
+          </div>
+        ) : (
+          filteredFiles.map((file) => {
           const isCurrentActive = file.path === activeFilePath;
           const isStaged = stagedFiles.includes(file.path);
           const isUnstaged = unstagedFiles.includes(file.path);
@@ -316,7 +350,8 @@ export const FileExplorerSidebar: React.FC = () => {
               </div>
             </div>
           );
-        })}
+        })
+        )}
       </div>
 
       {/* Footer Info */}

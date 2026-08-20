@@ -33,12 +33,27 @@ export const BottomPanel: React.FC = () => {
   ]);
   const [isRunningTests, setIsRunningTests] = useState(false);
 
-  // Live Note Sandbox State
-  const [sandboxNotes, setSandboxNotes] = useState([
-    { id: '1', title: 'Express MVC Architecture', category: 'Work', tags: ['express', 'node', 'backend'], content: 'Reviewed models and controllers for node-easy-notes-app.' },
-    { id: '2', title: 'Weekly Grocery List', category: 'Personal', tags: ['shopping', 'food'], content: 'Organic milk, eggs, sourdough bread, coffee beans.' },
-    { id: '3', title: '4 AI Agents System Design', category: 'Study', tags: ['ai', 'gemini', 'agents'], content: 'Coder, Reviewer, Bug Hunter, and Git Manager working concurrently.' }
-  ]);
+  // Live Note Sandbox State with localStorage persistence
+  const [sandboxNotes, setSandboxNotes] = useState<{ id: string; title: string; category: string; tags: string[]; content: string }[]>(() => {
+    try {
+      const saved = localStorage.getItem('ide_sandbox_notes_v1');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+    } catch {}
+    return [
+      { id: '1', title: 'Express MVC Architecture', category: 'Work', tags: ['express', 'node', 'backend'], content: 'Reviewed models and controllers for node-easy-notes-app.' },
+      { id: '2', title: 'Weekly Grocery List', category: 'Personal', tags: ['shopping', 'food'], content: 'Organic milk, eggs, sourdough bread, coffee beans.' },
+      { id: '3', title: '4 AI Agents System Design', category: 'Study', tags: ['ai', 'gemini', 'agents'], content: 'Coder, Reviewer, Bug Hunter, and Git Manager working concurrently.' }
+    ];
+  });
+
+  React.useEffect(() => {
+    try {
+      localStorage.setItem('ide_sandbox_notes_v1', JSON.stringify(sandboxNotes));
+    } catch {}
+  }, [sandboxNotes]);
   const [searchFilter, setSearchFilter] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [newTitle, setNewTitle] = useState('');
