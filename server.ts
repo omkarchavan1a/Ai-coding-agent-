@@ -4,7 +4,7 @@ import crypto from "crypto";
 import { z } from "zod";
 import { createServer as createViteServer } from "vite";
 import { GoogleGenAI } from "@google/genai";
-import { INITIAL_TARGET_REPO_FILES, MODIFIED_TARGET_REPO_FILES } from "./src/data/targetRepoData.js";
+import { INITIAL_TARGET_REPO_FILES, MODIFIED_TARGET_REPO_FILES } from "./src/data/targetRepoData";
 import {
   initializeSqliteDatabase,
   getPasscodeRecord,
@@ -23,7 +23,7 @@ import {
   logAgentRun,
   SQLITE_DB_PATH,
   type StoredPasscodeRecord
-} from "./server/sqliteDb.js";
+} from "./server/sqliteDb";
 
 const app = express();
 const PORT = 3000;

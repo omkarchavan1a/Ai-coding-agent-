@@ -2,7 +2,7 @@ import { DatabaseSync } from 'node:sqlite';
 import path from 'node:path';
 import fs from 'node:fs';
 
-// Safely determine writable database path with corruption recovery
+// Safely determine writable database path with automatic corruption recovery
 function resolveSqliteDatabase(): { db: DatabaseSync; dbPath: string } {
   const isServerless = Boolean(process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME);
   
@@ -16,53 +16,51 @@ function resolveSqliteDatabase(): { db: DatabaseSync; dbPath: string } {
       if (!fs.existsSync(dir)) {
         fs.mkdirSync(dir, { recursive: true });
       }
-      const testFile = path.join(dir, '.write_test_' + Date.now());
-      fs.writeFileSync(testFile, 'test');
-      fs.unlinkSync(testFile);
 
       const dbPath = path.join(dir, 'workspace_database.sqlite');
-      
-      let instance: DatabaseSync;
+      const walPath = dbPath + '-wal';
+      const shmPath = dbPath + '-shm';
+
+      // Check if existing file is healthy before opening
+      let instance: DatabaseSync | null = null;
+
       try {
         instance = new DatabaseSync(dbPath);
-        // Verify database integrity
-        instance.exec('PRAGMA user_version;');
-      } catch (openErr: any) {
-        console.warn(`[SQLite] Existing database file at ${dbPath} was invalid or malformed. Recreating clean database...`, openErr?.message);
+        // Test real read operation
+        instance.exec('SELECT count(*) FROM sqlite_master;');
+      } catch (err: any) {
+        console.warn(`[SQLite] Database file at ${dbPath} was unreadable (${err?.message}). Cleaning and recreating...`);
         try {
           if (fs.existsSync(dbPath)) fs.unlinkSync(dbPath);
-          const walFile = dbPath + '-wal';
-          const shmFile = dbPath + '-shm';
-          if (fs.existsSync(walFile)) fs.unlinkSync(walFile);
-          if (fs.existsSync(shmFile)) fs.unlinkSync(shmFile);
-        } catch {}
+          if (fs.existsSync(walPath)) fs.unlinkSync(walPath);
+          if (fs.existsSync(shmPath)) fs.unlinkSync(shmPath);
+        } catch (cleanupErr) {
+          console.warn('[SQLite] Cleanup warning:', cleanupErr);
+        }
         instance = new DatabaseSync(dbPath);
+      }
+
+      try {
+        instance.exec('PRAGMA foreign_keys = ON;');
+      } catch (pragmaErr) {
+        console.warn('[SQLite] Pragma config warning:', pragmaErr);
       }
 
       console.log(`[SQLite] Initialized healthy database at: ${dbPath}`);
       return { db: instance, dbPath };
     } catch (err) {
-      console.warn(`[SQLite] Directory ${dir} is not writable or failed:`, err);
+      console.warn(`[SQLite] Candidate directory ${dir} failed:`, err);
     }
   }
 
-  // Fallback to in-memory database if file system is completely locked
+  // Fallback to in-memory database if all filesystem paths fail
   console.log(`[SQLite] Falling back to in-memory SQLite database`);
-  return { db: new DatabaseSync(':memory:'), dbPath: ':memory:' };
+  const memDb = new DatabaseSync(':memory:');
+  return { db: memDb, dbPath: ':memory:' };
 }
 
 const { db, dbPath: SQLITE_DB_PATH } = resolveSqliteDatabase();
 export { db, SQLITE_DB_PATH };
-
-// Enable WAL mode and foreign keys for high performance and durability
-try {
-  db.exec(`
-    PRAGMA journal_mode = WAL;
-    PRAGMA foreign_keys = ON;
-  `);
-} catch (e) {
-  console.warn('[SQLite] PRAGMA setup notice:', e);
-}
 
 export interface StoredPasscodeRecord {
   id: string;
