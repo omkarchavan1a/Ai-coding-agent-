@@ -2,6 +2,13 @@ import React, { useState, useEffect } from 'react';
 import { Note } from '../types';
 import { Search, Tag, Folder, Plus, Trash2, RefreshCw, CheckCircle2, Sparkles, Database } from 'lucide-react';
 import { safeFetchJson } from '../utils/safeFetch';
+import {
+  queryClientNotes,
+  getClientNotesMetadata,
+  createClientNote,
+  deleteClientNote,
+  resetClientNotes
+} from '../utils/clientNoteStorage';
 
 export const NoteAppBenchTab: React.FC = () => {
   const [notes, setNotes] = useState<Note[]>([]);
@@ -28,18 +35,39 @@ export const NoteAppBenchTab: React.FC = () => {
       if (selectedTag) params.append('tag', selectedTag);
 
       const res = await safeFetchJson<Note[]>(`/api/notes?${params.toString()}`, undefined, []);
-      if (res.ok && Array.isArray(res.data)) {
+      if (res.ok && Array.isArray(res.data) && res.data.length > 0) {
         setNotes(res.data);
+      } else {
+        // Client fallback (Vercel static hosting)
+        const clientNotes = queryClientNotes({
+          search: searchQuery,
+          category: selectedCategory,
+          tag: selectedTag
+        });
+        setNotes(clientNotes);
       }
 
       // Fetch metadata
       const metaRes = await safeFetchJson<{ categories?: string[]; tags?: string[] }>('/api/notes/meta', undefined, {});
-      if (metaRes.ok && metaRes.data) {
+      if (metaRes.ok && metaRes.data && metaRes.data.categories) {
         setCategories(metaRes.data.categories || []);
         setTags(metaRes.data.tags || []);
+      } else {
+        const clientMeta = getClientNotesMetadata();
+        setCategories(clientMeta.categories);
+        setTags(clientMeta.tags);
       }
     } catch (err) {
-      console.error('Error fetching notes:', err);
+      console.error('Error fetching notes, using client storage:', err);
+      const clientNotes = queryClientNotes({
+        search: searchQuery,
+        category: selectedCategory,
+        tag: selectedTag
+      });
+      setNotes(clientNotes);
+      const clientMeta = getClientNotesMetadata();
+      setCategories(clientMeta.categories);
+      setTags(clientMeta.tags);
     } finally {
       setLoading(false);
     }
@@ -65,38 +93,60 @@ export const NoteAppBenchTab: React.FC = () => {
         }),
       });
 
-      if (res.ok) {
-        setNewTitle('');
-        setNewContent('');
-        setShowAddModal(false);
-        fetchNotes();
+      if (!res.ok) {
+        // Fallback for Vercel static hosting
+        createClientNote({
+          title: newTitle || 'Untitled Note',
+          content: newContent,
+          category: newCategory,
+          tags: newTagsInput
+        });
       }
+
+      setNewTitle('');
+      setNewContent('');
+      setShowAddModal(false);
+      fetchNotes();
     } catch (err) {
-      console.error('Error creating note:', err);
+      console.warn('Server create note failed, saving to client storage:', err);
+      createClientNote({
+        title: newTitle || 'Untitled Note',
+        content: newContent,
+        category: newCategory,
+        tags: newTagsInput
+      });
+      setNewTitle('');
+      setNewContent('');
+      setShowAddModal(false);
+      fetchNotes();
     }
   };
 
   const handleDeleteNote = async (id: string) => {
     try {
       const res = await safeFetchJson(`/api/notes/${id}`, { method: 'DELETE' });
-      if (res.ok) {
-        fetchNotes();
+      if (!res.ok) {
+        deleteClientNote(id);
       }
+      fetchNotes();
     } catch (err) {
-      console.error('Error deleting note:', err);
+      console.warn('Server delete note failed, deleting from client storage:', err);
+      deleteClientNote(id);
+      fetchNotes();
     }
   };
 
   const handleResetDemo = async () => {
     try {
       await safeFetchJson('/api/notes/reset', { method: 'POST' });
-      setSearchQuery('');
-      setSelectedCategory('');
-      setSelectedTag('');
-      fetchNotes();
     } catch (err) {
-      console.error('Error resetting demo notes:', err);
+      console.warn('Server reset note failed:', err);
     }
+    resetClientNotes();
+    setSearchQuery('');
+    setSelectedCategory('');
+    setSelectedTag('');
+    fetchNotes();
   };
 
   return (

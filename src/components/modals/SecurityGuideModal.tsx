@@ -24,11 +24,12 @@ import {
 import { useIDE } from '../../context/IDEContext';
 import { SecurityAuditData } from '../../types';
 import { safeFetchJson } from '../../utils/safeFetch';
+import { DEFAULT_SECURITY_AUDIT_DATA } from '../../utils/clientAuditData';
 
 export const SecurityGuideModal: React.FC = () => {
   const { isSecurityGuideModalOpen, setIsSecurityGuideModalOpen, openPasscodeModal } = useIDE();
   const [activeTab, setActiveTab] = useState<'checklist' | 'guide' | 'testbench' | 'master_prompt'>('checklist');
-  const [auditData, setAuditData] = useState<SecurityAuditData | null>(null);
+  const [auditData, setAuditData] = useState<SecurityAuditData>(DEFAULT_SECURITY_AUDIT_DATA);
   const [isLoadingAudit, setIsLoadingAudit] = useState(false);
   const [copiedPrompt, setCopiedPrompt] = useState(false);
 
@@ -49,11 +50,14 @@ export const SecurityGuideModal: React.FC = () => {
     setIsLoadingAudit(true);
     try {
       const res = await safeFetchJson<SecurityAuditData>('/api/security/audit');
-      if (res.data && typeof res.data === 'object') {
+      if (res.ok && res.data && typeof res.data === 'object' && res.data.checklist) {
         setAuditData(res.data);
+      } else {
+        setAuditData(DEFAULT_SECURITY_AUDIT_DATA);
       }
     } catch (e) {
-      console.warn("Failed to fetch security audit:", e);
+      console.warn("Failed to fetch server security audit, using default audit:", e);
+      setAuditData(DEFAULT_SECURITY_AUDIT_DATA);
     } finally {
       setIsLoadingAudit(false);
     }
