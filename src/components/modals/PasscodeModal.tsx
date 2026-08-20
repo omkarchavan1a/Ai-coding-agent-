@@ -138,7 +138,11 @@ export const PasscodeModal: React.FC = () => {
     setIsLoading(false);
 
     if (res.success) {
-      setSuccessMessage(res.message);
+      setSuccessMessage("Passcode created in SQLite database! Enter your created passcode to authorize and start using the web app.");
+      setPasscode('');
+      setConfirmPasscode('');
+      setPasscodeModalMode('authorize');
+      setTimeout(() => inputRef.current?.focus(), 200);
     } else {
       triggerError(res.error || res.message);
     }

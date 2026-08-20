@@ -2,22 +2,67 @@ import { DatabaseSync } from 'node:sqlite';
 import path from 'node:path';
 import fs from 'node:fs';
 
-// Ensure data directory exists
-const DATA_DIR = path.join(process.cwd(), 'data');
-if (!fs.existsSync(DATA_DIR)) {
-  fs.mkdirSync(DATA_DIR, { recursive: true });
+// Safely determine writable database path with corruption recovery
+function resolveSqliteDatabase(): { db: DatabaseSync; dbPath: string } {
+  const isServerless = Boolean(process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME);
+  
+  // Primary location: ./data in local/Cloud Run, or /tmp in serverless environments
+  const candidateDirs = isServerless 
+    ? ['/tmp', path.join(process.cwd(), 'data')]
+    : [path.join(process.cwd(), 'data'), '/tmp'];
+
+  for (const dir of candidateDirs) {
+    try {
+      if (!fs.existsSync(dir)) {
+        fs.mkdirSync(dir, { recursive: true });
+      }
+      const testFile = path.join(dir, '.write_test_' + Date.now());
+      fs.writeFileSync(testFile, 'test');
+      fs.unlinkSync(testFile);
+
+      const dbPath = path.join(dir, 'workspace_database.sqlite');
+      
+      let instance: DatabaseSync;
+      try {
+        instance = new DatabaseSync(dbPath);
+        // Verify database integrity
+        instance.exec('PRAGMA user_version;');
+      } catch (openErr: any) {
+        console.warn(`[SQLite] Existing database file at ${dbPath} was invalid or malformed. Recreating clean database...`, openErr?.message);
+        try {
+          if (fs.existsSync(dbPath)) fs.unlinkSync(dbPath);
+          const walFile = dbPath + '-wal';
+          const shmFile = dbPath + '-shm';
+          if (fs.existsSync(walFile)) fs.unlinkSync(walFile);
+          if (fs.existsSync(shmFile)) fs.unlinkSync(shmFile);
+        } catch {}
+        instance = new DatabaseSync(dbPath);
+      }
+
+      console.log(`[SQLite] Initialized healthy database at: ${dbPath}`);
+      return { db: instance, dbPath };
+    } catch (err) {
+      console.warn(`[SQLite] Directory ${dir} is not writable or failed:`, err);
+    }
+  }
+
+  // Fallback to in-memory database if file system is completely locked
+  console.log(`[SQLite] Falling back to in-memory SQLite database`);
+  return { db: new DatabaseSync(':memory:'), dbPath: ':memory:' };
 }
 
-export const SQLITE_DB_PATH = path.join(DATA_DIR, 'workspace_database.sqlite');
-console.log(`[SQLite] Initializing SQLite database at: ${SQLITE_DB_PATH}`);
-
-export const db = new DatabaseSync(SQLITE_DB_PATH);
+const { db, dbPath: SQLITE_DB_PATH } = resolveSqliteDatabase();
+export { db, SQLITE_DB_PATH };
 
 // Enable WAL mode and foreign keys for high performance and durability
-db.exec(`
-  PRAGMA journal_mode = WAL;
-  PRAGMA foreign_keys = ON;
-`);
+try {
+  db.exec(`
+    PRAGMA journal_mode = WAL;
+    PRAGMA foreign_keys = ON;
+  `);
+} catch (e) {
+  console.warn('[SQLite] PRAGMA setup notice:', e);
+}
 
 export interface StoredPasscodeRecord {
   id: string;

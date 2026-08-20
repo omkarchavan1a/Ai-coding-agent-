@@ -27,15 +27,22 @@ function IDEWorkspace() {
     viewMode,
     files,
     passcodeConfig,
-    setIsPasscodeModalOpen
+    setIsPasscodeModalOpen,
+    setPasscodeModalMode
   } = useIDE();
 
-  // If IDE session is locked on startup, show passcode authorization modal automatically
+  // On web app startup: create passcode if none exists, or authorize if locked
   React.useEffect(() => {
-    if (passcodeConfig && !passcodeConfig.isUnlocked) {
-      setIsPasscodeModalOpen(true);
+    if (passcodeConfig) {
+      if (!passcodeConfig.hasPasscode) {
+        setPasscodeModalMode('create');
+        setIsPasscodeModalOpen(true);
+      } else if (!passcodeConfig.isUnlocked) {
+        setPasscodeModalMode('authorize');
+        setIsPasscodeModalOpen(true);
+      }
     }
-  }, [passcodeConfig, setIsPasscodeModalOpen]);
+  }, [passcodeConfig, setIsPasscodeModalOpen, setPasscodeModalMode]);
 
   const handleExportZip = async () => {
     const zip = new JSZip();
