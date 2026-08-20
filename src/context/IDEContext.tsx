@@ -6,6 +6,7 @@ import { INITIAL_AGENTS, INITIAL_BYOK_SETTINGS, INITIAL_BUGS, INITIAL_REVIEWS, I
 import { PROJECT_TEMPLATES } from '../data/projectTemplates';
 import { PYTHON_AGENT_FILES } from '../data/pythonAgentSource';
 import { safeFetchJson } from '../utils/safeFetch';
+import { cloneRemoteRepository, parseGitUrl } from '../utils/gitClone';
 import {
   getClientPasscodeConfig,
   clientCreatePasscode,
@@ -65,17 +66,21 @@ interface IDEContextType {
   removePasscode: (currentPasscode: string) => Promise<{ success: boolean; message: string; error?: string }>;
   fetchPasscodeStatus: () => Promise<void>;
 
-  // Project Management & Import / Export
+  // Project Management & Import / Export / Clone
   projectName: string;
   setProjectName: (name: string) => void;
   isProjectModalOpen: boolean;
   setIsProjectModalOpen: (open: boolean) => void;
-  projectModalTab: 'new' | 'import' | 'export';
-  setProjectModalTab: (tab: 'new' | 'import' | 'export') => void;
+  projectModalTab: 'new' | 'import' | 'clone' | 'export';
+  setProjectModalTab: (tab: 'new' | 'import' | 'clone' | 'export') => void;
   openNewProjectModal: () => void;
   openImportProjectModal: () => void;
+  openCloneProjectModal: () => void;
   openExportProjectModal: () => void;
   createNewProject: (templateId: string, customName?: string) => void;
+  cloneRepository: (repoUrl: string, branch?: string, token?: string) => Promise<{ success: boolean; count?: number; repoName?: string; branch?: string; error?: string }>;
+  isCloningRepo: boolean;
+  cloneStatusMessage: string;
   importProjectFromZip: (file: File) => Promise<{ success: boolean; count?: number; error?: string }>;
   importProjectFromFiles: (fileList: FileList | File[]) => Promise<{ success: boolean; count?: number; error?: string }>;
   importProjectFromJson: (jsonString: string) => { success: boolean; count?: number; error?: string };
@@ -216,7 +221,9 @@ export const IDEProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   // Project Management State
   const [projectName, setProjectName] = useState<string>(loadStoredProjectName);
   const [isProjectModalOpen, setIsProjectModalOpen] = useState<boolean>(false);
-  const [projectModalTab, setProjectModalTab] = useState<'new' | 'import' | 'export'>('new');
+  const [projectModalTab, setProjectModalTab] = useState<'new' | 'import' | 'clone' | 'export'>('new');
+  const [isCloningRepo, setIsCloningRepo] = useState<boolean>(false);
+  const [cloneStatusMessage, setCloneStatusMessage] = useState<string>('');
 
   // ==================== WORKSPACE AUTO-PERSISTENCE EFFECTS ====================
   useEffect(() => {
@@ -294,6 +301,11 @@ export const IDEProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const openImportProjectModal = () => {
     setProjectModalTab('import');
+    setIsProjectModalOpen(true);
+  };
+
+  const openCloneProjectModal = () => {
+    setProjectModalTab('clone');
     setIsProjectModalOpen(true);
   };
 
@@ -506,6 +518,92 @@ export const IDEProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       return { success: true, count: normalized.length };
     } catch (err: any) {
       return { success: false, error: 'JSON parse error: ' + err.message };
+    }
+  };
+
+  // 4b. Clone Remote Repository from Git / GitHub
+  const cloneRepository = async (
+    repoUrl: string,
+    branch?: string,
+    token?: string
+  ): Promise<{ success: boolean; count?: number; repoName?: string; branch?: string; error?: string }> => {
+    setIsCloningRepo(true);
+    setCloneStatusMessage(`Connecting to repository "${repoUrl}"...`);
+
+    try {
+      const res = await cloneRemoteRepository({ url: repoUrl, branch, token });
+      if (res.success && res.files && res.files.length > 0) {
+        const repoName = res.repoName || parseGitUrl(repoUrl).displayName || 'cloned-project';
+        setProjectName(repoName);
+        setFiles(res.files);
+        setDiffBaseFiles(res.files);
+
+        // Find primary entry file
+        const primaryEntry = res.files.find(f => 
+          f.path.includes('package.json') ||
+          f.path.includes('README') ||
+          f.path.includes('index') ||
+          f.path.includes('main') ||
+          f.path.includes('App') ||
+          f.path.includes('server')
+        )?.path || res.files[0].path;
+
+        setActiveFilePath(primaryEntry);
+        setOpenTabs(res.files.slice(0, 5).map(f => f.path));
+        setStagedFiles([]);
+        setUnstagedFiles([]);
+
+        const detectedBranch = res.branch || branch || 'main';
+        setCurrentBranch(detectedBranch);
+        setGitBranches([
+          { name: detectedBranch, isCurrent: true, lastCommitHash: res.commit?.hash || 'head' }
+        ]);
+
+        setGitCommits([
+          {
+            id: 'c_clone_' + Math.random().toString(36).substring(2, 7),
+            message: res.commit?.message || `Initial clone of ${repoName}`,
+            author: res.commit?.author || 'Git Author',
+            timestamp: res.commit?.timestamp || 'Just now',
+            hash: res.commit?.hash || Math.random().toString(16).substring(2, 9),
+            filesCount: res.files.length,
+            branch: detectedBranch
+          }
+        ]);
+
+        setPullRequests([]);
+        setAgents(INITIAL_AGENTS.map(a => ({
+          ...a,
+          status: 'idle',
+          progress: 0,
+          logs: [],
+          tokenUsage: { inputTokens: 0, outputTokens: 0, totalTokens: 0 }
+        })));
+        setOrchestratorProgress(0);
+        setOrchestratorThought(`Ready to orchestrate 4 autonomous agents across ${repoName} (${res.files.length} files).`);
+        setViewMode('editor');
+        setIsProjectModalOpen(false);
+
+        return {
+          success: true,
+          count: res.files.length,
+          repoName,
+          branch: detectedBranch
+        };
+      } else {
+        return {
+          success: false,
+          error: res.error || 'Failed to clone repository.'
+        };
+      }
+    } catch (err: any) {
+      return {
+        success: false,
+        error: err.message || 'An error occurred during repository cloning.'
+      };
+    } finally {
+      setIsCloningRepo(false);
+      setCloneStatusMessage('');
     }
   };
 
@@ -1533,7 +1631,7 @@ export const IDEProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         removePasscode,
         fetchPasscodeStatus,
 
-        // Project Management
+        // Project Management & Clone
         projectName,
         setProjectName,
         isProjectModalOpen,
@@ -1542,8 +1640,12 @@ export const IDEProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         setProjectModalTab,
         openNewProjectModal,
         openImportProjectModal,
+        openCloneProjectModal,
         openExportProjectModal,
         createNewProject,
+        cloneRepository,
+        isCloningRepo,
+        cloneStatusMessage,
         importProjectFromZip,
         importProjectFromFiles,
         importProjectFromJson,

@@ -19,7 +19,8 @@ import {
   Copy,
   Edit3,
   MoreVertical,
-  Sparkles
+  Sparkles,
+  GitFork
 } from 'lucide-react';
 import { FileContextMenu, ContextMenuPosition } from '../common/FileContextMenu';
 import { FileOperationModal, FileModalType } from '../modals/FileOperationModal';
@@ -29,6 +30,7 @@ export const FileExplorerSidebar: React.FC = () => {
     projectName,
     openNewProjectModal,
     openImportProjectModal,
+    openCloneProjectModal,
     openExportProjectModal,
     files,
     activeFilePath,
@@ -171,6 +173,15 @@ export const FileExplorerSidebar: React.FC = () => {
             <Folder className="w-3.5 h-3.5 text-[#818cf8]" />
           </button>
 
+          {/* Clone Repository */}
+          <button
+            onClick={openCloneProjectModal}
+            className="p-1 rounded hover:bg-[#1c1c24] text-[#71717a] hover:text-[#38bdf8] transition-colors"
+            title="Clone Git / GitHub Repository"
+          >
+            <GitFork className="w-3.5 h-3.5 text-[#38bdf8]" />
+          </button>
+
           {/* Import Project */}
           <button
             onClick={openImportProjectModal}
@@ -234,7 +245,7 @@ export const FileExplorerSidebar: React.FC = () => {
             <div className="space-y-1">
               <p className="text-[#ededee] text-[11px] font-medium">Workspace is empty</p>
               <p className="text-[#71717a] text-[10px] leading-relaxed">
-                Create a new file, load a project template, or import a ZIP repo.
+                Create a new file, load a project template, or clone a remote Git repo.
               </p>
             </div>
             <div className="flex flex-col space-y-1.5 w-full pt-1">
@@ -244,6 +255,13 @@ export const FileExplorerSidebar: React.FC = () => {
               >
                 <Plus className="w-3 h-3 text-[#34d399]" />
                 <span>New File</span>
+              </button>
+              <button
+                onClick={openCloneProjectModal}
+                className="w-full py-1 px-2 rounded bg-[#0c2436] hover:bg-[#0e2f47] border border-[#164e63] text-[#38bdf8] text-[10px] font-medium flex items-center justify-center space-x-1.5 transition-colors"
+              >
+                <GitFork className="w-3 h-3 text-[#38bdf8]" />
+                <span>Clone Git Repository</span>
               </button>
               <button
                 onClick={openNewProjectModal}

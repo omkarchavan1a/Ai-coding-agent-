@@ -24,6 +24,7 @@ import {
   SQLITE_DB_PATH,
   type StoredPasscodeRecord
 } from "./server/sqliteDb";
+import { executeGitClone } from "./server/gitCloneHandler";
 
 const app = express();
 const PORT = 3000;
@@ -930,6 +931,42 @@ Briefly summarize your approach for repository exploration, file identification,
     });
   } catch (err: any) {
     res.status(500).json({ error: err.message || "Agent execution failed" });
+  }
+});
+
+// ==================== REPOSITORY CLONING ENDPOINT ====================
+
+app.post("/api/git/clone", async (req, res) => {
+  const clientIp = (req.headers['x-forwarded-for'] as string) || req.socket.remoteAddress || '127.0.0.1';
+  try {
+    const { url, branch, token } = req.body || {};
+
+    if (!url || typeof url !== 'string' || !url.trim()) {
+      return res.status(400).json({
+        success: false,
+        error: "Repository URL is required (e.g. 'https://github.com/expressjs/express' or 'owner/repo')."
+      });
+    }
+
+    console.log(`[GIT-CLONE] 🚀 Request to clone repository "${url.trim()}" (branch: ${branch || 'default'}) from ${clientIp}`);
+
+    const result = await executeGitClone(url.trim(), branch ? String(branch).trim() : undefined, token ? String(token).trim() : undefined);
+
+    if (!result.success) {
+      console.warn(`[GIT-CLONE] ❌ Clone failed for "${url}":`, result.error);
+      return res.status(400).json(result);
+    }
+
+    console.log(`[GIT-CLONE] ✓ Successfully cloned "${result.repoName}" with ${result.count} files (branch: ${result.branch})`);
+    logAuditEvent('git_clone', clientIp, true, `Cloned repository ${result.repoName} (${result.count} files)`);
+
+    return res.json(result);
+  } catch (err: any) {
+    console.error("[GIT-CLONE] ❌ Unexpected clone error:", err);
+    return res.status(500).json({
+      success: false,
+      error: err.message || "Failed to clone repository. Please check URL or network connectivity."
+    });
   }
 });
 

@@ -16,7 +16,8 @@ import {
   FilePlus,
   Trash2,
   Lock,
-  KeyRound
+  KeyRound,
+  GitFork
 } from 'lucide-react';
 import { AgentRole } from '../../types';
 
@@ -29,6 +30,7 @@ export const CommandPaletteModal: React.FC = () => {
     activeFile,
     openNewProjectModal,
     openImportProjectModal,
+    openCloneProjectModal,
     openExportProjectModal,
     passcodeConfig,
     openPasscodeModal,
@@ -204,6 +206,28 @@ export const CommandPaletteModal: React.FC = () => {
                     </div>
                     <span className="text-[10px] text-[#71717a]">
                       Initialize workspace with Node, React, Python 4-Agents or Blank template.
+                    </span>
+                  </div>
+                </div>
+                <ArrowRight className="w-3 h-3 text-[#52525b] group-hover:text-white" />
+              </button>
+
+              <button
+                onClick={() => {
+                  setIsCommandPaletteOpen(false);
+                  openCloneProjectModal();
+                }}
+                className="w-full p-2 rounded-lg bg-[#15151a] hover:bg-[#1c1c24] border border-[#202028] flex items-center justify-between text-left transition-all group"
+              >
+                <div className="flex items-center space-x-2.5">
+                  <GitFork className="w-3.5 h-3.5 text-[#38bdf8]" />
+                  <div>
+                    <div className="font-medium text-[#ededee] group-hover:text-white text-[11px] flex items-center space-x-1.5">
+                      <span>Clone Remote Git Repository</span>
+                      <span className="px-1 py-0.2 bg-[#0284c7]/20 text-[#38bdf8] text-[9px] rounded font-mono">Git</span>
+                    </div>
+                    <span className="text-[10px] text-[#71717a]">
+                      Clone any public or private GitHub / GitLab / Git repository into workspace.
                     </span>
                   </div>
                 </div>

@@ -11,7 +11,8 @@ import {
   ArrowUpCircle, 
   ArrowDownCircle, 
   ExternalLink,
-  ChevronDown
+  ChevronDown,
+  GitFork
 } from 'lucide-react';
 
 export const GitManagerSidebar: React.FC = () => {
@@ -31,7 +32,8 @@ export const GitManagerSidebar: React.FC = () => {
     switchBranch,
     createBranch,
     setIsPRModalOpen,
-    openFileInTab
+    openFileInTab,
+    openCloneProjectModal
   } = useIDE();
 
   const [commitMessage, setCommitMessage] = useState('feat(notes): implement tags and multi-field search engine');
@@ -74,6 +76,13 @@ export const GitManagerSidebar: React.FC = () => {
           <span className="font-semibold text-xs">Git & GitHub</span>
         </div>
         <div className="flex items-center space-x-1">
+          <button
+            onClick={openCloneProjectModal}
+            className="p-1 rounded hover:bg-[#1c1c24] text-[#71717a] hover:text-[#38bdf8] transition-colors"
+            title="Clone Git Repository"
+          >
+            <GitFork className="w-3.5 h-3.5" />
+          </button>
           <button
             onClick={() => pullFromRemote()}
             className="p-1 rounded hover:bg-[#1c1c24] text-[#71717a] hover:text-white"

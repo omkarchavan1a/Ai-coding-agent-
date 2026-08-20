@@ -4,6 +4,7 @@ import {
   Sparkles, 
   Key, 
   GitBranch, 
+  GitFork,
   Square, 
   SplitSquareVertical, 
   Code, 
@@ -26,6 +27,7 @@ export const CursorTopBar: React.FC<{ onExportZip?: () => void }> = () => {
     projectName,
     openNewProjectModal,
     openImportProjectModal,
+    openCloneProjectModal,
     openExportProjectModal,
     passcodeConfig,
     openPasscodeModal,
@@ -109,6 +111,23 @@ export const CursorTopBar: React.FC<{ onExportZip?: () => void }> = () => {
                 <div className="flex-1">
                   <div className="font-medium">New Project...</div>
                   <div className="text-[10px] text-[#71717a]">Choose from starters or blank</div>
+                </div>
+              </button>
+
+              <button
+                onClick={() => {
+                  setIsProjectMenuOpen(false);
+                  openCloneProjectModal();
+                }}
+                className="w-full px-3 py-2 text-left text-[#ededee] hover:bg-[#22222e] hover:text-white flex items-center space-x-2.5 transition-colors"
+              >
+                <GitFork className="w-3.5 h-3.5 text-[#38bdf8]" />
+                <div className="flex-1">
+                  <div className="font-medium flex items-center space-x-1.5">
+                    <span>Clone Repository...</span>
+                    <span className="px-1 py-0.2 bg-[#0284c7]/20 text-[#38bdf8] text-[9px] rounded font-mono">Git</span>
+                  </div>
+                  <div className="text-[10px] text-[#71717a]">Clone GitHub or remote Git repo</div>
                 </div>
               </button>
 
