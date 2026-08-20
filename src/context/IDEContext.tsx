@@ -6,6 +6,14 @@ import { INITIAL_AGENTS, INITIAL_BYOK_SETTINGS, INITIAL_BUGS, INITIAL_REVIEWS, I
 import { PROJECT_TEMPLATES } from '../data/projectTemplates';
 import { PYTHON_AGENT_FILES } from '../data/pythonAgentSource';
 import { safeFetchJson } from '../utils/safeFetch';
+import {
+  getClientPasscodeConfig,
+  clientCreatePasscode,
+  clientAuthorizePasscode,
+  clientChangePasscode,
+  clientRemovePasscode,
+  setClientSessionUnlocked
+} from '../utils/clientSecurity';
 
 interface IDEContextType {
   // Passcode Security & Cryptographic Authorization
@@ -513,12 +521,15 @@ export const IDEProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const fetchPasscodeStatus = useCallback(async () => {
     try {
       const res = await safeFetchJson<PasscodeConfig>('/api/passcode/status');
-      if (res.data && typeof res.data === 'object') {
+      if (res.ok && res.data && typeof res.data === 'object' && ('hasPasscode' in res.data)) {
         setPasscodeConfig(res.data);
+        return;
       }
     } catch (e) {
-      console.warn("Failed to fetch passcode status:", e);
+      console.warn("Failed to fetch server passcode status, using client vault:", e);
     }
+    // Fallback to client-side Web Crypto vault config
+    setPasscodeConfig(getClientPasscodeConfig());
   }, []);
 
   useEffect(() => {
@@ -538,21 +549,31 @@ export const IDEProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         body: JSON.stringify({ passcode })
       });
       const data = res.data;
-      if (data.success) {
+      if (res.ok && data && data.success) {
         await fetchPasscodeStatus();
         setIsPasscodeModalOpen(false);
         return { success: true, message: data.message || "Passcode authorized successfully!" };
       }
-      await fetchPasscodeStatus();
-      return { 
-        success: false, 
-        message: data.error || "Incorrect passcode.", 
-        error: data.error,
-        remainingSeconds: data.remainingSeconds 
-      };
-    } catch (err: any) {
-      return { success: false, message: err.message || "Network error", error: err.message };
+      if (res.ok && data && data.error) {
+        await fetchPasscodeStatus();
+        return { 
+          success: false, 
+          message: data.error || "Incorrect passcode.", 
+          error: data.error,
+          remainingSeconds: data.remainingSeconds 
+        };
+      }
+    } catch (err) {
+      console.warn("Server authorize request failed, falling back to Web Crypto:", err);
     }
+
+    // Client-side Web Crypto Fallback
+    const clientRes = await clientAuthorizePasscode(passcode);
+    if (clientRes.success) {
+      setPasscodeConfig(getClientPasscodeConfig());
+      setIsPasscodeModalOpen(false);
+    }
+    return clientRes;
   };
 
   const createPasscode = async (passcode: string, hint?: string, developerName?: string) => {
@@ -563,15 +584,24 @@ export const IDEProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         body: JSON.stringify({ passcode, hint, developerName })
       });
       const data = res.data;
-      if (data.success) {
+      if (res.ok && data && data.success) {
         await fetchPasscodeStatus();
         setIsPasscodeModalOpen(false);
         return { success: true, message: data.message || "Passcode created!" };
       }
-      return { success: false, message: data.error || "Failed to create passcode.", error: data.error };
-    } catch (err: any) {
-      return { success: false, message: err.message || "Network error", error: err.message };
+      if (res.ok && data && data.error) {
+        return { success: false, message: data.error, error: data.error };
+      }
+    } catch (err) {
+      console.warn("Server create request failed, falling back to Web Crypto:", err);
     }
+
+    // Client-side Web Crypto Fallback
+    const clientRes = await clientCreatePasscode(passcode, hint, developerName);
+    if (clientRes.success) {
+      setPasscodeConfig(getClientPasscodeConfig());
+    }
+    return clientRes;
   };
 
   const changePasscode = async (currentPasscode: string, newPasscode: string, newHint?: string, developerName?: string) => {
@@ -582,25 +612,36 @@ export const IDEProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         body: JSON.stringify({ currentPasscode, newPasscode, newHint, developerName })
       });
       const data = res.data;
-      if (data.success) {
+      if (res.ok && data && data.success) {
         await fetchPasscodeStatus();
         setIsPasscodeModalOpen(false);
         return { success: true, message: data.message || "Passcode updated!" };
       }
-      return { success: false, message: data.error || "Failed to update passcode.", error: data.error };
-    } catch (err: any) {
-      return { success: false, message: err.message || "Network error", error: err.message };
+      if (res.ok && data && data.error) {
+        return { success: false, message: data.error, error: data.error };
+      }
+    } catch (err) {
+      console.warn("Server change request failed, falling back to Web Crypto:", err);
     }
+
+    // Client-side Web Crypto Fallback
+    const clientRes = await clientChangePasscode(currentPasscode, newPasscode, newHint, developerName);
+    if (clientRes.success) {
+      setPasscodeConfig(getClientPasscodeConfig());
+      setIsPasscodeModalOpen(false);
+    }
+    return clientRes;
   };
 
   const lockSession = async () => {
     try {
       await safeFetchJson('/api/passcode/lock', { method: 'POST' });
-      await fetchPasscodeStatus();
-      openPasscodeModal('authorize');
     } catch (e) {
-      console.warn("Failed to lock session:", e);
+      console.warn("Failed to lock server session:", e);
     }
+    setClientSessionUnlocked(false);
+    setPasscodeConfig(getClientPasscodeConfig());
+    openPasscodeModal('authorize');
   };
 
   const removePasscode = async (currentPasscode: string) => {
@@ -611,15 +652,25 @@ export const IDEProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         body: JSON.stringify({ currentPasscode })
       });
       const data = res.data;
-      if (data.success) {
+      if (res.ok && data && data.success) {
         await fetchPasscodeStatus();
         setIsPasscodeModalOpen(false);
         return { success: true, message: data.message || "Passcode removed." };
       }
-      return { success: false, message: data.error || "Failed to remove passcode.", error: data.error };
-    } catch (err: any) {
-      return { success: false, message: err.message || "Network error", error: err.message };
+      if (res.ok && data && data.error) {
+        return { success: false, message: data.error, error: data.error };
+      }
+    } catch (err) {
+      console.warn("Server remove request failed, falling back to Web Crypto:", err);
     }
+
+    // Client-side Web Crypto Fallback
+    const clientRes = await clientRemovePasscode(currentPasscode);
+    if (clientRes.success) {
+      setPasscodeConfig(getClientPasscodeConfig());
+      setIsPasscodeModalOpen(false);
+    }
+    return clientRes;
   };
 
   // Sync BYOK settings to localStorage

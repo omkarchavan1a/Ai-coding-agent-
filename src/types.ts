@@ -174,7 +174,20 @@ export interface PasscodeConfig {
   hashAlgorithm?: string;
   hashPreview?: string; // e.g. "sha256:7f83b165...e24"
   salt?: string;
+  saltPreview?: string;
   failedAttempts?: number;
+  isLockedOut?: boolean;
+  remainingLockoutSeconds?: number;
+  database?: string;
+  securityFeatures?: {
+    serverValidation?: string;
+    rateLimiting?: string;
+    progressiveDelay?: string;
+    hashAlgorithm?: string;
+    storageEncryption?: string;
+    timingSafe?: boolean;
+    genericErrors?: boolean;
+  };
 }
 
 export interface PasscodeSession {
