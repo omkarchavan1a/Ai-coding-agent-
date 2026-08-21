@@ -13,12 +13,13 @@ import {
   CheckCircle2, 
   Clock, 
   Terminal, 
-  Activity,
-  Layers,
-  AtSign,
-  Lock,
-  Unlock,
-  KeyRound
+  Activity, 
+  Layers, 
+  AtSign, 
+  Lock, 
+  Unlock, 
+  KeyRound,
+  Key
 } from 'lucide-react';
 import { AgentRole } from '../../types';
 
@@ -34,7 +35,10 @@ export const MultiAgentSidebar: React.FC = () => {
     passcodeConfig,
     openPasscodeModal,
     setActiveBottomTab,
-    setIsBottomPanelOpen
+    setIsBottomPanelOpen,
+    setViewMode,
+    byok,
+    setIsByokModalOpen
   } = useIDE();
 
   const [customPrompt, setCustomPrompt] = useState('');
@@ -79,15 +83,20 @@ export const MultiAgentSidebar: React.FC = () => {
         {/* Main Composer Box (Cursor Style) */}
         <div className="bg-[#16161b] border border-[#22222a] rounded-lg p-2.5 space-y-2">
           {/* Top pills */}
-          <div className="flex items-center justify-between text-[10px]">
-            <div className="flex items-center space-x-1.5">
-              <span className="px-1.5 py-0.5 rounded bg-[#1f1f28] text-[#d4d4d8] font-mono flex items-center space-x-1">
+          <div className="flex items-center justify-between text-[10px] gap-1">
+            <div className="flex items-center space-x-1.5 overflow-hidden">
+              <span className="px-1.5 py-0.5 rounded bg-[#1f1f28] text-[#d4d4d8] font-mono flex items-center space-x-1 flex-shrink-0">
                 <AtSign className="w-2.5 h-2.5 text-[#818cf8]" />
                 <span>Codebase</span>
               </span>
-              <span className="px-1.5 py-0.5 rounded bg-[#1f1f28] text-[#818cf8] font-mono">
-                4 Agents
-              </span>
+              <button
+                onClick={() => setIsByokModalOpen(true)}
+                className="px-1.5 py-0.5 rounded bg-[#1f1f28] hover:bg-[#282836] text-[#fbbf24] font-mono flex items-center space-x-1 transition-colors cursor-pointer border border-transparent hover:border-[#3a3a4c]"
+                title="Configure LLM Provider & Custom Keys (BYOK)"
+              >
+                <Key className="w-2.5 h-2.5" />
+                <span className="uppercase text-[9px]">{byok.provider}</span>
+              </button>
             </div>
             <button
               onClick={() => {
@@ -97,7 +106,7 @@ export const MultiAgentSidebar: React.FC = () => {
                   openPasscodeModal('security_info');
                 }
               }}
-              className={`font-mono text-[9px] px-2 py-0.5 rounded border flex items-center space-x-1 transition-colors ${
+              className={`font-mono text-[9px] px-2 py-0.5 rounded border flex items-center space-x-1 transition-colors flex-shrink-0 ${
                 passcodeConfig?.isUnlocked
                   ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20 hover:bg-emerald-500/20'
                   : 'bg-amber-500/10 text-amber-300 border-amber-500/30 hover:bg-amber-500/20 animate-pulse'
@@ -194,6 +203,25 @@ export const MultiAgentSidebar: React.FC = () => {
               </button>
             )}
           </div>
+        </div>
+
+        {/* View Switchers Shortcuts */}
+        <div className="flex items-center space-x-1.5">
+          <button
+            onClick={() => setViewMode('workflow')}
+            className="flex-1 py-1.5 px-2 bg-[#16161b] hover:bg-[#1f1f28] border border-[#22222a] rounded-lg text-[10px] text-[#ededee] flex items-center justify-center space-x-1.5 transition-colors cursor-pointer"
+          >
+            <Sparkles className="w-3 h-3 text-amber-400" />
+            <span>Workflow View</span>
+          </button>
+
+          <button
+            onClick={() => setViewMode('sandbox')}
+            className="flex-1 py-1.5 px-2 bg-[#16161b] hover:bg-[#1f1f28] border border-[#22222a] rounded-lg text-[10px] text-[#ededee] flex items-center justify-center space-x-1.5 transition-colors cursor-pointer"
+          >
+            <ShieldCheck className="w-3 h-3 text-emerald-400" />
+            <span>Test Sandbox</span>
+          </button>
         </div>
 
         {/* Live Execution Progress Bar */}

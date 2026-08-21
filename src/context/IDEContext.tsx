@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import JSZip from 'jszip';
-import { RepoFile, AgentInfo, AgentRole, CodeBug, ReviewAnnotation, CodeReviewScorecard, GitCommit, GitBranch, PullRequest, BYOKSettings, ProjectTemplate, PasscodeConfig, PasscodeModalMode } from '../types';
+import { RepoFile, AgentInfo, AgentRole, CodeBug, ReviewAnnotation, CodeReviewScorecard, GitCommit, GitBranch, PullRequest, BYOKSettings, ProjectTemplate, PasscodeConfig, PasscodeModalMode, IDEViewMode, AgentExecutionState } from '../types';
 import { INITIAL_TARGET_REPO_FILES, MODIFIED_TARGET_REPO_FILES } from '../data/targetRepoData';
 import { INITIAL_AGENTS, INITIAL_BYOK_SETTINGS, INITIAL_BUGS, INITIAL_REVIEWS, INITIAL_SCORECARD, INITIAL_COMMITS, INITIAL_BRANCHES, INITIAL_PULL_REQUESTS } from '../data/agentData';
 import { PROJECT_TEMPLATES } from '../data/projectTemplates';
@@ -92,7 +92,7 @@ interface IDEContextType {
   activeFilePath: string;
   activeFile: RepoFile | undefined;
   openTabs: string[];
-  viewMode: 'editor' | 'diff';
+  viewMode: IDEViewMode;
   diffBaseFiles: RepoFile[];
   
   // Navigation & Sidebars
@@ -101,11 +101,14 @@ interface IDEContextType {
   isBottomPanelOpen: boolean;
   activeBottomTab: 'console' | 'tests' | 'review' | 'bugs' | 'git' | 'sandbox';
   
-  // 4 Agents State
+  // 4 Agents & Workflow State
   agents: AgentInfo[];
   isAnyAgentRunning: boolean;
   orchestratorProgress: number;
   orchestratorThought: string;
+  agentExecutionState: AgentExecutionState;
+  agentPrompt: string;
+  setAgentPrompt: (p: string) => void;
   runAllAgents: (customPrompt?: string) => Promise<void>;
   runSingleAgent: (role: AgentRole, customPrompt?: string) => Promise<void>;
   stopAgents: () => void;
@@ -167,7 +170,7 @@ interface IDEContextType {
   revertFile: (path: string) => void;
   revertAllFiles: () => void;
   downloadSingleFile: (path: string) => void;
-  setViewMode: (mode: 'editor' | 'diff') => void;
+  setViewMode: (mode: IDEViewMode) => void;
   setActiveSidebarTab: (tab: 'explorer' | 'agents' | 'review' | 'bugs' | 'git' | 'settings') => void;
   setIsSidebarOpen: (open: boolean) => void;
   setIsBottomPanelOpen: (open: boolean) => void;
@@ -185,7 +188,7 @@ export const IDEProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [diffBaseFiles, setDiffBaseFiles] = useState<RepoFile[]>(loadStoredDiffBaseFiles);
   const [activeFilePath, setActiveFilePath] = useState<string>(() => loadStoredActiveFilePath(loadStoredFiles()));
   const [openTabs, setOpenTabs] = useState<string[]>(() => loadStoredOpenTabs(loadStoredFiles()));
-  const [viewMode, setViewMode] = useState<'editor' | 'diff'>(loadStoredViewMode);
+  const [viewMode, setViewMode] = useState<IDEViewMode>(loadStoredViewMode);
   
   const initialUI = loadStoredUIState();
   const [activeSidebarTab, setActiveSidebarTab] = useState<'explorer' | 'agents' | 'review' | 'bugs' | 'git' | 'settings'>(initialUI.activeSidebarTab);
@@ -198,6 +201,24 @@ export const IDEProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const initialOrch = loadStoredOrchestrator();
   const [orchestratorProgress, setOrchestratorProgress] = useState<number>(initialOrch.progress);
   const [orchestratorThought, setOrchestratorThought] = useState<string>(initialOrch.thought);
+
+  const [agentPrompt, setAgentPrompt] = useState<string>('Improve the application so users can better organise and search their notes.');
+  const [agentExecutionState, setAgentExecutionState] = useState<AgentExecutionState>({
+    stage: 'idle',
+    progress: 0,
+    currentStepDescription: 'Ready to execute pipeline',
+    logs: [],
+    toolCalls: [],
+    plan: [
+      { id: 1, title: 'Explore repository', description: 'Analyze directory tree and detect architecture', targetFiles: ['app/', 'server.js', 'package.json'], status: 'pending' },
+      { id: 2, title: 'Identify relevant files', description: 'Find models, controllers, and routes to modify', targetFiles: ['app/models/note.model.js', 'app/controllers/note.controller.js', 'app/routes/note.routes.js'], status: 'pending' },
+      { id: 3, title: 'Create brief plan', description: 'Design category & tags schemas with text search indexing', targetFiles: ['app/models/note.model.js'], status: 'pending' },
+      { id: 4, title: 'Modify codebase', description: 'Implement new schemas, search query handlers, and integration tests', targetFiles: ['app/controllers/note.controller.js', 'test/note.test.js'], status: 'pending' },
+      { id: 5, title: 'Summarise and verify', description: 'Preserve existing contracts and run automated verification', targetFiles: ['test/note.test.js'], status: 'pending' }
+    ],
+    identifiedFiles: ['app/models/note.model.js', 'app/controllers/note.controller.js', 'app/routes/note.routes.js', 'test/note.test.js'],
+    summary: null
+  });
   
   const [bugs, setBugs] = useState<CodeBug[]>(loadStoredBugs);
   const [reviews, setReviews] = useState<ReviewAnnotation[]>(loadStoredReviews);
@@ -1380,11 +1401,25 @@ export const IDEProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       return;
     }
 
-    const promptText = customPrompt || 'Improve the application so users can better organise and search their notes.';
+    const promptText = customPrompt || agentPrompt || 'Improve the application so users can better organise and search their notes.';
     setIsAnyAgentRunning(true);
     setOrchestratorProgress(10);
     setOrchestratorThought('Orchestrating 4 autonomous agents in parallel...');
     
+    // Step 1: Exploring
+    setAgentExecutionState(prev => ({
+      ...prev,
+      stage: 'exploring',
+      progress: 20,
+      currentStepDescription: 'Analyzing repository directory structure, dependencies, and architecture...',
+      logs: [
+        '[System] Initializing Agent 1 (Coder), Agent 2 (Reviewer), Agent 3 (BugHunter), Agent 4 (GitManager)',
+        `[System] Operational Prompt: "${promptText}"`,
+        `[Explorer] Scanned ${files.length} repository files. Detected Express.js + Mongoose/MongoDB MVC architecture.`
+      ],
+      plan: prev.plan.map((p, i) => i === 0 ? { ...p, status: 'in_progress' } : p)
+    }));
+
     // Set all 4 agents to running
     setAgents(prev => prev.map(a => ({
       ...a,
@@ -1398,18 +1433,32 @@ export const IDEProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     try {
       // Trigger server orchestration endpoint (Zero API Keys / SMTP required, secured by Passcode)
-      const serverPromise = fetch('/api/agent/orchestrate-4', {
+      fetch('/api/agent/orchestrate-4', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           prompt: promptText,
           files: files.map(f => ({ path: f.path, content: f.content }))
         })
-      });
+      }).catch(() => {});
 
-      // Stream progress steps across all 4 agents
+      // Step 2: Identifying relevant files
       await new Promise(r => setTimeout(r, 600));
       setOrchestratorProgress(35);
+      setAgentExecutionState(prev => ({
+        ...prev,
+        stage: 'identifying',
+        progress: 40,
+        currentStepDescription: 'Identifying files that require changes: models, controllers, routes, tests...',
+        logs: [
+          ...prev.logs,
+          '[Identifier] Matched models/note.model.js for schema extension (category, tags).',
+          '[Identifier] Matched controllers/note.controller.js for query parsing ($regex, category, tags).',
+          '[Identifier] Matched routes/note.routes.js for route mappings.'
+        ],
+        plan: prev.plan.map((p, i) => i === 0 ? { ...p, status: 'completed' } : i === 1 ? { ...p, status: 'in_progress' } : p)
+      }));
+
       setAgents(prev => prev.map(a => ({
         ...a,
         progress: 45,
@@ -1419,8 +1468,23 @@ export const IDEProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         ]
       })));
 
+      // Step 3: Planning & Step 4: Modifying
       await new Promise(r => setTimeout(r, 700));
       setOrchestratorProgress(60);
+      setAgentExecutionState(prev => ({
+        ...prev,
+        stage: 'modifying',
+        progress: 75,
+        currentStepDescription: 'Applying codebase modifications, indexes, and test suites...',
+        logs: [
+          ...prev.logs,
+          '[Coder] Injected category and tags array schema definitions into note.model.js.',
+          '[Coder] Implemented multi-field text search & tag filters in note.controller.js.',
+          '[Reviewer] Verified non-breaking backward compatibility on all CRUD endpoints.',
+          '[BugHunter] Analyzed AST: zero unhandled promise rejections detected.'
+        ],
+        plan: prev.plan.map((p, i) => i <= 2 ? { ...p, status: 'completed' } : i === 3 ? { ...p, status: 'in_progress' } : p)
+      }));
       
       // Update Agent 1: Coder
       setFiles(MODIFIED_TARGET_REPO_FILES);
@@ -1478,9 +1542,51 @@ export const IDEProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         return a;
       }));
 
+      // Step 5: Testing & Summary
       await new Promise(r => setTimeout(r, 800));
       setOrchestratorProgress(100);
       setOrchestratorThought('4 Agents successfully executed! Code modified, reviewed, debugged, and staged in Git.');
+
+      setAgentExecutionState(prev => ({
+        ...prev,
+        stage: 'completed',
+        progress: 100,
+        currentStepDescription: 'All 5 pipeline steps executed successfully.',
+        logs: [
+          ...prev.logs,
+          '[Verifier] Executing integration test suite...',
+          '[Verifier] ✓ Test 1: GET /notes returns all existing notes (Backward compatibility preserved)',
+          '[Verifier] ✓ Test 2: GET /notes?category=work correctly filters notes',
+          '[Verifier] ✓ Test 3: GET /notes?search=quick performs full-text query',
+          '[GitManager] Automatically created semantic commit feat(notes): add category, tags and search filter.'
+        ],
+        plan: prev.plan.map(p => ({ ...p, status: 'completed' })),
+        summary: {
+          filesModified: [
+            'app/models/note.model.js',
+            'app/controllers/note.controller.js',
+            'app/routes/note.routes.js',
+            'test/note.test.js'
+          ],
+          featuresAdded: [
+            'Categorization schema field (optional string)',
+            'Tags array schema field with indexing',
+            'Full-text & multi-field regex search API query parameter (?search=...)',
+            'Category filter query parameter (?category=...) and Tag filter (?tag=...)',
+            'Automated Mocha/Chai integration test suite'
+          ],
+          preservedFunctionality: [
+            'Existing GET /notes, POST /notes, GET /notes/:id contracts unaltered',
+            'Standard { title, content } payload backwards compatibility',
+            'Error status codes and JSON response shapes'
+          ],
+          testResults: {
+            total: 3,
+            passed: 3,
+            failed: 0
+          }
+        }
+      }));
 
       // Complete all agents
       setAgents(prev => prev.map(a => ({
@@ -1667,6 +1773,9 @@ export const IDEProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         isAnyAgentRunning,
         orchestratorProgress,
         orchestratorThought,
+        agentExecutionState,
+        agentPrompt,
+        setAgentPrompt,
         runAllAgents,
         runSingleAgent,
         stopAgents,

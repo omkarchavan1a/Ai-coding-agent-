@@ -11,6 +11,10 @@ import { GitManagerSidebar } from './components/sidebars/GitManagerSidebar';
 import { SettingsSidebar } from './components/sidebars/SettingsSidebar';
 import { CodeEditorPane } from './components/editor/CodeEditorPane';
 import { DiffViewerPane } from './components/editor/DiffViewerPane';
+import { AgentRunTab } from './components/AgentRunTab';
+import { NoteAppBenchTab } from './components/NoteAppBenchTab';
+import { PythonCodeTab } from './components/PythonCodeTab';
+import { DocsTab } from './components/DocsTab';
 import { BottomPanel } from './components/bottom/BottomPanel';
 import { BYOKModal } from './components/modals/BYOKModal';
 import { CommandPaletteModal } from './components/modals/CommandPaletteModal';
@@ -28,7 +32,12 @@ function IDEWorkspace() {
     files,
     passcodeConfig,
     setIsPasscodeModalOpen,
-    setPasscodeModalMode
+    setPasscodeModalMode,
+    agentExecutionState,
+    agentPrompt,
+    setAgentPrompt,
+    runAllAgents,
+    isAnyAgentRunning
   } = useIDE();
 
   // On web app startup: create passcode if none exists, or authorize if locked
@@ -111,9 +120,36 @@ function IDEWorkspace() {
 
         {/* Center Main Stage (Editor or Diff Viewer + Bottom Panel) */}
         <main className="flex-1 flex flex-col min-w-0 bg-[#0f0f12] overflow-hidden">
-          {/* Editor Area */}
-          <div className="flex-1 min-h-0 relative">
-            {viewMode === 'editor' ? <CodeEditorPane /> : <DiffViewerPane />}
+          {/* Editor Area / Full-screen Views */}
+          <div className="flex-1 min-h-0 relative overflow-hidden">
+            {viewMode === 'editor' && <CodeEditorPane />}
+            {viewMode === 'diff' && <DiffViewerPane />}
+            {viewMode === 'workflow' && (
+              <div className="h-full overflow-y-auto p-4 md:p-6 bg-[#0f0f12]">
+                <AgentRunTab
+                  state={agentExecutionState}
+                  prompt={agentPrompt}
+                  setPrompt={setAgentPrompt}
+                  onRunAgent={() => runAllAgents()}
+                  isRunning={isAnyAgentRunning}
+                />
+              </div>
+            )}
+            {viewMode === 'sandbox' && (
+              <div className="h-full overflow-y-auto p-4 md:p-6 bg-[#0f0f12]">
+                <NoteAppBenchTab />
+              </div>
+            )}
+            {viewMode === 'python' && (
+              <div className="h-full overflow-y-auto p-4 md:p-6 bg-[#0f0f12]">
+                <PythonCodeTab onExportZip={handleExportZip} />
+              </div>
+            )}
+            {viewMode === 'docs' && (
+              <div className="h-full overflow-y-auto p-4 md:p-6 bg-[#0f0f12]">
+                <DocsTab />
+              </div>
+            )}
           </div>
 
           {/* Bottom Terminal & Test Dock */}

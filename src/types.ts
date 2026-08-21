@@ -51,6 +51,8 @@ export interface CodeBug {
   isFixed: boolean;
 }
 
+export type IDEViewMode = 'editor' | 'diff' | 'workflow' | 'sandbox' | 'python' | 'docs';
+
 export interface AgentExecutionState {
   stage: 'idle' | 'exploring' | 'identifying' | 'planning' | 'modifying' | 'testing' | 'completed' | 'failed';
   progress: number;

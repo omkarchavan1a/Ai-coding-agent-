@@ -9,7 +9,10 @@ import {
   ShieldCheck,
   KeyRound,
   Zap,
-  CheckCircle2
+  CheckCircle2,
+  Key,
+  Sparkles,
+  ExternalLink
 } from 'lucide-react';
 
 export const SettingsSidebar: React.FC = () => {
@@ -22,7 +25,8 @@ export const SettingsSidebar: React.FC = () => {
     openPasscodeModal,
     openSecurityGuideModal,
     lockSession,
-    byok
+    byok,
+    setIsByokModalOpen
   } = useIDE();
 
   return (
@@ -36,6 +40,49 @@ export const SettingsSidebar: React.FC = () => {
       </div>
 
       <div className="flex-1 overflow-y-auto p-3 space-y-3">
+        {/* Bring Your Own Key (BYOK) Card */}
+        <div className="bg-[#15151a] border border-[#202028] hover:border-[#30303e] rounded-lg p-3 space-y-2.5 transition-colors">
+          <div className="flex items-center justify-between">
+            <span className="font-medium text-[#ededee] text-[11px] flex items-center space-x-1.5">
+              <Key className="w-3.5 h-3.5 text-[#fbbf24]" />
+              <span>Bring Your Own Key (BYOK)</span>
+            </span>
+            <span className={`text-[9px] px-1.5 py-0.2 rounded font-mono font-medium border uppercase ${
+              byok.isKeyVerified || byok.geminiApiKey || byok.openaiApiKey || byok.anthropicApiKey
+                ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
+                : 'bg-amber-500/10 text-amber-300 border-amber-500/20'
+            }`}>
+              {byok.provider}
+            </span>
+          </div>
+
+          <div className="text-[11px] text-[#8e8ea0] bg-[#101014] p-2 rounded border border-[#1e1e24] space-y-1">
+            <div className="flex justify-between items-center text-[10px]">
+              <span>Active Model:</span>
+              <span className="text-white font-mono font-medium">{byok.selectedModel}</span>
+            </div>
+            <div className="flex justify-between items-center text-[10px]">
+              <span>Key Status:</span>
+              <span className={byok.isKeyVerified ? 'text-emerald-400 font-medium' : byok.geminiApiKey || byok.openaiApiKey ? 'text-sky-400' : 'text-amber-300 font-medium'}>
+                {byok.isKeyVerified ? 'Verified & Active' : (byok.geminiApiKey || byok.openaiApiKey || byok.anthropicApiKey) ? 'Custom Key Stored' : 'Default / Zero-Key Mode'}
+              </span>
+            </div>
+            <div className="flex justify-between items-center text-[10px]">
+              <span>Latency:</span>
+              <span className="text-slate-300 font-mono">{byok.lastPingMs}ms</span>
+            </div>
+          </div>
+
+          <button
+            id="btn-sidebar-byok-configure"
+            onClick={() => setIsByokModalOpen(true)}
+            className="w-full py-1.5 bg-[#181822] hover:bg-[#232332] border border-[#28283a] text-white rounded flex items-center justify-center space-x-1.5 transition-colors text-[11px] font-medium cursor-pointer"
+          >
+            <Key className="w-3.5 h-3.5 text-[#fbbf24]" />
+            <span>Configure AI Provider & Keys</span>
+          </button>
+        </div>
+
         {/* Project Management Card */}
         <div className="bg-[#15151a] border border-[#202028] rounded-lg p-3 space-y-2.5">
           <div className="flex items-center justify-between">

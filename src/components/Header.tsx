@@ -1,5 +1,6 @@
 import React from 'react';
-import { Bot, Play, Download, RefreshCw, Code, CheckCircle, Sparkles } from 'lucide-react';
+import { Bot, Play, Download, RefreshCw, Code, CheckCircle, Sparkles, Key } from 'lucide-react';
+import { useIDE } from '../context/IDEContext';
 
 interface HeaderProps {
   isRunning: boolean;
@@ -18,6 +19,7 @@ export const Header: React.FC<HeaderProps> = ({
   onExportZip,
   onResetRepo,
 }) => {
+  const { byok, setIsByokModalOpen } = useIDE();
   return (
     <header className="bg-[#21222D] border-b border-[#2A2C3A] sticky top-0 z-50 text-white shadow-md">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3.5 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
@@ -41,6 +43,15 @@ export const Header: React.FC<HeaderProps> = ({
 
         {/* Action Controls */}
         <div className="flex items-center flex-wrap gap-2.5">
+          <button
+            onClick={() => setIsByokModalOpen(true)}
+            className="inline-flex items-center space-x-1.5 px-3 py-2 rounded-xl font-medium text-xs bg-[#191A23] hover:bg-[#252535] text-[#fbbf24] border border-amber-500/30 transition-all active:scale-95 cursor-pointer"
+            title="Bring Your Own Key (BYOK) - Configure AI Provider & API Key"
+          >
+            <Key className="w-3.5 h-3.5" />
+            <span>BYOK ({byok?.provider?.toUpperCase() || 'GEMINI'})</span>
+          </button>
+
           <button
             onClick={onRunAgent}
             disabled={isRunning}

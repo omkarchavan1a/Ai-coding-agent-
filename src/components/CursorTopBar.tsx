@@ -19,7 +19,10 @@ import {
   Lock,
   Unlock,
   ShieldCheck,
-  KeyRound
+  KeyRound,
+  FlaskConical,
+  BookOpen,
+  FileCode
 } from 'lucide-react';
 
 export const CursorTopBar: React.FC<{ onExportZip?: () => void }> = () => {
@@ -225,6 +228,29 @@ export const CursorTopBar: React.FC<{ onExportZip?: () => void }> = () => {
           <span className="hidden lg:inline">Export</span>
         </button>
 
+        {/* Bring Your Own Key (BYOK) API Key Settings Button */}
+        <button
+          id="btn-topbar-byok-settings"
+          onClick={() => setIsByokModalOpen(true)}
+          className={`h-7 px-2.5 rounded-md border flex items-center space-x-1.5 transition-all text-[11px] font-medium cursor-pointer ${
+            byok?.isKeyVerified || (byok?.geminiApiKey || byok?.openaiApiKey || byok?.anthropicApiKey)
+              ? 'bg-[#121d17] border-[#1d422c] text-[#34d399] hover:bg-[#182920]'
+              : 'bg-[#1a1711] border-[#3a2c18] text-[#fbbf24] hover:bg-[#251e14]'
+          }`}
+          title="Bring Your Own Key (BYOK) - Configure Gemini, OpenAI, Anthropic, or Ollama API Keys"
+        >
+          <Key className="w-3.5 h-3.5 text-[#fbbf24]" />
+          <span className="font-semibold text-white">BYOK</span>
+          <span className="hidden sm:inline px-1.5 py-0.2 rounded text-[9px] font-mono uppercase bg-[#22222d] text-[#a1a1aa]">
+            {byok?.provider || 'Gemini'}
+          </span>
+          <span
+            className={`w-1.5 h-1.5 rounded-full ${
+              byok?.isKeyVerified ? 'bg-[#10b981]' : (byok?.geminiApiKey || byok?.openaiApiKey || byok?.anthropicApiKey) ? 'bg-[#3b82f6]' : 'bg-[#fbbf24]'
+            }`}
+          />
+        </button>
+
         <div className="h-4 w-px bg-[#22222a] mx-0.5" />
 
         {/* Passcode Security & Lock Dropdown */}
@@ -397,27 +423,72 @@ export const CursorTopBar: React.FC<{ onExportZip?: () => void }> = () => {
 
         <div className="h-4 w-px bg-[#22222a] mx-0.5" />
 
-        {/* View Mode Toggle: Editor vs Diff */}
-        <div className="flex items-center bg-[#131317] border border-[#22222a] rounded-md p-0.5">
+        {/* Comprehensive Workbench View Switcher */}
+        <div className="flex items-center bg-[#131317] border border-[#22222a] rounded-md p-0.5 space-x-0.5">
           <button
             onClick={() => setViewMode('editor')}
-            className={`px-2 py-0.5 rounded text-[11px] transition-all flex items-center space-x-1 ${
-              viewMode === 'editor' ? 'bg-[#22222b] text-white font-medium' : 'text-[#71717a] hover:text-[#d4d4d8]'
+            className={`px-2 py-0.5 rounded text-[11px] transition-all flex items-center space-x-1 cursor-pointer ${
+              viewMode === 'editor' ? 'bg-[#22222b] text-white font-semibold shadow-xs' : 'text-[#71717a] hover:text-[#d4d4d8]'
             }`}
-            title="Standard Code Editor"
+            title="Multi-Tab Code Editor"
           >
-            <Code className="w-3 h-3" />
-            <span className="hidden sm:inline">Editor</span>
+            <Code className="w-3 h-3 text-indigo-400" />
+            <span className="hidden lg:inline">Editor</span>
           </button>
+
+          <button
+            onClick={() => setViewMode('workflow')}
+            className={`px-2 py-0.5 rounded text-[11px] transition-all flex items-center space-x-1 cursor-pointer ${
+              viewMode === 'workflow' ? 'bg-[#22222b] text-white font-semibold shadow-xs' : 'text-[#71717a] hover:text-[#d4d4d8]'
+            }`}
+            title="4-Agent Step-by-Step Execution Workflow"
+          >
+            <Sparkles className="w-3 h-3 text-amber-400" />
+            <span className="hidden lg:inline">Workflow</span>
+          </button>
+
+          <button
+            onClick={() => setViewMode('sandbox')}
+            className={`px-2 py-0.5 rounded text-[11px] transition-all flex items-center space-x-1 cursor-pointer ${
+              viewMode === 'sandbox' ? 'bg-[#22222b] text-white font-semibold shadow-xs' : 'text-[#71717a] hover:text-[#d4d4d8]'
+            }`}
+            title="Live Notes REST API & Benchmark Sandbox"
+          >
+            <FlaskConical className="w-3 h-3 text-emerald-400" />
+            <span className="hidden lg:inline">Sandbox</span>
+          </button>
+
           <button
             onClick={() => setViewMode('diff')}
-            className={`px-2 py-0.5 rounded text-[11px] transition-all flex items-center space-x-1 ${
-              viewMode === 'diff' ? 'bg-[#22222b] text-white font-medium' : 'text-[#71717a] hover:text-[#d4d4d8]'
+            className={`px-2 py-0.5 rounded text-[11px] transition-all flex items-center space-x-1 cursor-pointer ${
+              viewMode === 'diff' ? 'bg-[#22222b] text-white font-semibold shadow-xs' : 'text-[#71717a] hover:text-[#d4d4d8]'
             }`}
-            title="Side-by-Side Diff Viewer"
+            title="Interactive Git Diffs"
           >
-            <SplitSquareVertical className="w-3 h-3 text-[#818cf8]" />
-            <span className="hidden sm:inline">Diff</span>
+            <SplitSquareVertical className="w-3 h-3 text-sky-400" />
+            <span className="hidden lg:inline">Diff</span>
+          </button>
+
+          <button
+            onClick={() => setViewMode('python')}
+            className={`px-2 py-0.5 rounded text-[11px] transition-all flex items-center space-x-1 cursor-pointer ${
+              viewMode === 'python' ? 'bg-[#22222b] text-white font-semibold shadow-xs' : 'text-[#71717a] hover:text-[#d4d4d8]'
+            }`}
+            title="Python 3.11+ 4-Agent Orchestrator Source"
+          >
+            <FileCode className="w-3 h-3 text-purple-400" />
+            <span className="hidden xl:inline">Python</span>
+          </button>
+
+          <button
+            onClick={() => setViewMode('docs')}
+            className={`px-2 py-0.5 rounded text-[11px] transition-all flex items-center space-x-1 cursor-pointer ${
+              viewMode === 'docs' ? 'bg-[#22222b] text-white font-semibold shadow-xs' : 'text-[#71717a] hover:text-[#d4d4d8]'
+            }`}
+            title="Architecture & Walkthrough Documentation"
+          >
+            <BookOpen className="w-3 h-3 text-rose-400" />
+            <span className="hidden xl:inline">Docs</span>
           </button>
         </div>
 

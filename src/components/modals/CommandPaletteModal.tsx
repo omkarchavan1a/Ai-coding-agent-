@@ -17,7 +17,13 @@ import {
   Trash2,
   Lock,
   KeyRound,
-  GitFork
+  Key,
+  GitFork,
+  FlaskConical,
+  BookOpen,
+  FileCode,
+  SplitSquareVertical,
+  Layers
 } from 'lucide-react';
 import { AgentRole } from '../../types';
 
@@ -42,7 +48,10 @@ export const CommandPaletteModal: React.FC = () => {
     revertAllFiles,
     revertFile,
     deleteFile,
-    downloadSingleFile
+    downloadSingleFile,
+    setViewMode,
+    byok,
+    setIsByokModalOpen
   } = useIDE();
 
   const [prompt, setPrompt] = useState('');
@@ -92,6 +101,131 @@ export const CommandPaletteModal: React.FC = () => {
 
         {/* Quick Action Commands */}
         <div className="p-2.5 space-y-3 max-h-[70vh] overflow-y-auto">
+          {/* Workbench View Navigation */}
+          <div>
+            <span className="text-[10px] text-[#71717a] uppercase tracking-wider font-semibold px-1.5 block mb-1 flex items-center justify-between">
+              <span>Workbench Views & Modes</span>
+              <span className="text-[9px] text-[#818cf8] font-mono">6 Views</span>
+            </span>
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5">
+              <button
+                onClick={() => {
+                  setViewMode('editor');
+                  setIsCommandPaletteOpen(false);
+                }}
+                className="p-2 rounded-lg bg-[#15151a] hover:bg-[#1c1c24] border border-[#202028] hover:border-indigo-500/40 text-left transition-all group flex items-center space-x-2"
+              >
+                <Code2 className="w-3.5 h-3.5 text-indigo-400" />
+                <div className="truncate">
+                  <div className="font-medium text-[#ededee] text-[11px]">Code Editor</div>
+                  <div className="text-[9px] text-[#71717a]">IDE Editor</div>
+                </div>
+              </button>
+
+              <button
+                onClick={() => {
+                  setViewMode('workflow');
+                  setIsCommandPaletteOpen(false);
+                }}
+                className="p-2 rounded-lg bg-[#15151a] hover:bg-[#1c1c24] border border-[#202028] hover:border-amber-500/40 text-left transition-all group flex items-center space-x-2"
+              >
+                <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+                <div className="truncate">
+                  <div className="font-medium text-[#ededee] text-[11px]">Agent Workflow</div>
+                  <div className="text-[9px] text-[#71717a]">5-Step Pipeline</div>
+                </div>
+              </button>
+
+              <button
+                onClick={() => {
+                  setViewMode('sandbox');
+                  setIsCommandPaletteOpen(false);
+                }}
+                className="p-2 rounded-lg bg-[#15151a] hover:bg-[#1c1c24] border border-[#202028] hover:border-emerald-500/40 text-left transition-all group flex items-center space-x-2"
+              >
+                <FlaskConical className="w-3.5 h-3.5 text-emerald-400" />
+                <div className="truncate">
+                  <div className="font-medium text-[#ededee] text-[11px]">REST Sandbox</div>
+                  <div className="text-[9px] text-[#71717a]">Notes App Test</div>
+                </div>
+              </button>
+
+              <button
+                onClick={() => {
+                  setViewMode('diff');
+                  setIsCommandPaletteOpen(false);
+                }}
+                className="p-2 rounded-lg bg-[#15151a] hover:bg-[#1c1c24] border border-[#202028] hover:border-sky-500/40 text-left transition-all group flex items-center space-x-2"
+              >
+                <SplitSquareVertical className="w-3.5 h-3.5 text-sky-400" />
+                <div className="truncate">
+                  <div className="font-medium text-[#ededee] text-[11px]">Git Diffs</div>
+                  <div className="text-[9px] text-[#71717a]">Code Modifications</div>
+                </div>
+              </button>
+
+              <button
+                onClick={() => {
+                  setViewMode('python');
+                  setIsCommandPaletteOpen(false);
+                }}
+                className="p-2 rounded-lg bg-[#15151a] hover:bg-[#1c1c24] border border-[#202028] hover:border-purple-500/40 text-left transition-all group flex items-center space-x-2"
+              >
+                <FileCode className="w-3.5 h-3.5 text-purple-400" />
+                <div className="truncate">
+                  <div className="font-medium text-[#ededee] text-[11px]">Python Source</div>
+                  <div className="text-[9px] text-[#71717a]">4 Agents Code</div>
+                </div>
+              </button>
+
+              <button
+                onClick={() => {
+                  setViewMode('docs');
+                  setIsCommandPaletteOpen(false);
+                }}
+                className="p-2 rounded-lg bg-[#15151a] hover:bg-[#1c1c24] border border-[#202028] hover:border-rose-500/40 text-left transition-all group flex items-center space-x-2"
+              >
+                <BookOpen className="w-3.5 h-3.5 text-rose-400" />
+                <div className="truncate">
+                  <div className="font-medium text-[#ededee] text-[11px]">System Docs</div>
+                  <div className="text-[9px] text-[#71717a]">Architecture & Script</div>
+                </div>
+              </button>
+            </div>
+          </div>
+
+          {/* Bring Your Own Key (BYOK) & AI Provider */}
+          <div>
+            <span className="text-[10px] text-[#71717a] uppercase tracking-wider font-semibold px-1.5 block mb-1 flex items-center justify-between">
+              <span>Bring Your Own Key (BYOK) & AI Provider</span>
+              <span className="text-[9px] text-[#fbbf24] font-mono uppercase">{byok.provider} • {byok.selectedModel}</span>
+            </span>
+            <div className="space-y-1">
+              <button
+                id="cmd-open-byok"
+                onClick={() => {
+                  setIsCommandPaletteOpen(false);
+                  setIsByokModalOpen(true);
+                }}
+                className="w-full p-2 rounded-lg bg-[#181510] hover:bg-[#251e14] border border-amber-500/30 flex items-center justify-between text-left transition-all group cursor-pointer"
+              >
+                <div className="flex items-center space-x-2.5">
+                  <Key className="w-3.5 h-3.5 text-[#fbbf24]" />
+                  <div>
+                    <div className="font-medium text-[#ededee] group-hover:text-amber-200 text-[11px] flex items-center space-x-2">
+                      <span>Configure Bring Your Own Key (BYOK)</span>
+                      <span className="px-1.5 py-0.2 rounded bg-amber-500/20 text-amber-300 text-[9px] font-mono">Custom API Keys</span>
+                    </div>
+                    <span className="text-[10px] text-[#8e8ea0]">
+                      Configure Gemini, OpenAI (GPT-4o/o1), Anthropic (Claude 3.5 Sonnet), or local Ollama endpoints.
+                    </span>
+                  </div>
+                </div>
+                <ArrowRight className="w-3 h-3 text-amber-400 group-hover:translate-x-0.5 transition-transform" />
+              </button>
+            </div>
+          </div>
+
           {/* Passcode Security Commands */}
           <div>
             <span className="text-[10px] text-[#71717a] uppercase tracking-wider font-semibold px-1.5 block mb-1 flex items-center justify-between">

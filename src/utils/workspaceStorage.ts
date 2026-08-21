@@ -21,7 +21,8 @@ import {
   GitCommit,
   GitBranch,
   PullRequest,
-  BYOKSettings
+  BYOKSettings,
+  IDEViewMode
 } from '../types';
 
 import {
@@ -138,8 +139,8 @@ export function loadStoredOpenTabs(availableFiles: RepoFile[]): string[] {
   return [];
 }
 
-export function loadStoredViewMode(): 'editor' | 'diff' {
-  return safeGet<'editor' | 'diff'>(KEYS.VIEW_MODE, 'editor');
+export function loadStoredViewMode(): IDEViewMode {
+  return safeGet<IDEViewMode>(KEYS.VIEW_MODE, 'editor');
 }
 
 export function loadStoredUIState(): StoredUIState {
@@ -223,7 +224,7 @@ export function persistOpenTabs(tabs: string[]): void {
   safeSet(KEYS.OPEN_TABS, tabs);
 }
 
-export function persistViewMode(mode: 'editor' | 'diff'): void {
+export function persistViewMode(mode: IDEViewMode): void {
   safeSet(KEYS.VIEW_MODE, mode);
 }
 
